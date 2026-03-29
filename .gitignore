@@ -1,0 +1,39 @@
+# Environment
+.env
+
+# Virtual environments
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Personal financial data
+My_Financial_Tracker.xlsx*
+Financial_Tracker.xlsx
+*.xlsx.backup*
+
+# Application state
+onboarding_state.json
+bot.log
+
+# Backups
+backups/
+
+# macOS
+.DS_Store
+
+# IDE / Tools
+.ruff_cache/
+.sisyphus/
+
+# Firebase
+firebase-debug.log
+
+# Screenshots
+oracle-setup.png
+
+# Test fixtures with PII
+tests/cc_extraction_result.json

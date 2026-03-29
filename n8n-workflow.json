@@ -1,0 +1,144 @@
+{
+  "name": "Financial Tracker - Telegram to Excel",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "combinator": "or",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/spend",
+              "operator": { "type": "string", "operation": "startsWith" }
+            },
+            {
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/quick",
+              "operator": { "type": "string", "operation": "startsWith" }
+            },
+            {
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/income",
+              "operator": { "type": "string", "operation": "startsWith" }
+            },
+            {
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/save",
+              "operator": { "type": "string", "operation": "startsWith" }
+            },
+            {
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "/summary",
+              "operator": { "type": "string", "operation": "startsWith" }
+            }
+          ]
+        }
+      },
+      "id": "route-commands",
+      "name": "Route Commands",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse /quick <amount> <category> <description>\nconst text = $input.first().json.message.text;\nconst parts = text.split(' ');\nparts.shift(); // remove /quick\n\nconst amount = parseFloat(parts[0]) || 0;\nconst categoryKeyword = (parts[1] || '').toLowerCase();\nconst description = parts.slice(2).join(' ');\n\nconst categoryMap = {\n  'food': 'Food & Groceries',\n  'transport': 'Transportation',\n  'housing': 'Housing',\n  'entertainment': 'Entertainment',\n  'health': 'Healthcare',\n  'education': 'Education',\n  'shopping': 'Shopping',\n  'bill': 'Bills & Utilities',\n  'bills': 'Bills & Utilities'\n};\n\nconst category = categoryMap[categoryKeyword] || 'Food & Groceries';\nconst date = new Date().toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    date,\n    amount,\n    category,\n    description,\n    payment_method: 'Cash',\n    chat_id: $input.first().json.message.chat.id\n  }\n}];"
+      },
+      "id": "parse-quick",
+      "name": "Parse Quick Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "list", "value": "" },
+        "sheetName": { "__rl": true, "mode": "list", "value": "Transactions" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Description": "={{ $json.description }}",
+            "Category": "={{ $json.category }}",
+            "Payment Method": "={{ $json.payment_method }}",
+            "Amount": "={{ $json.amount }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "write-to-sheet",
+      "name": "Write to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [880, 200],
+      "notes": "NOTE: n8n does not natively write to .xlsx files. You have two options:\n1. Use Google Sheets instead of Excel (recommended for n8n)\n2. Use the Python bot (bot.py) for direct Excel integration"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "=Recorded: {{ $json.amount }} in {{ $json.category }}\n{{ $json.description }}",
+        "additionalFields": {}
+      },
+      "id": "send-confirmation",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1100, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [{ "node": "Route Commands", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route Commands": {
+      "main": [
+        [{ "node": "Parse Quick Command", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Quick Command": {
+      "main": [
+        [{ "node": "Write to Google Sheet", "type": "main", "index": 0 }]
+      ]
+    },
+    "Write to Google Sheet": {
+      "main": [
+        [{ "node": "Send Confirmation", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

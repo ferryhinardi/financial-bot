@@ -1,0 +1,9 @@
+[project]
+name = "financial-bot"
+version = "1.0.0"
+description = "Personal financial tracking Telegram bot with Excel integration"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
