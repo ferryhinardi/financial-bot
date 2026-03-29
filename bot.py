@@ -185,9 +185,7 @@ def is_authorized(update: Update) -> bool:
 async def reply_unauthorized(update: Update) -> None:
     message = update.effective_message
     if message is not None:
-        await message.reply_text(
-            "Unauthorized. Update ALLOWED_USER_IDS to grant access."
-        )
+        await message.reply_text("Unauthorized. Update ALLOWED_USER_IDS to grant access.")
 
 
 def parse_amount(raw: str) -> float:
@@ -237,11 +235,7 @@ _PENDING_TTL_SECONDS = 3600
 def _store_pending(user_id: int, data: dict) -> str:
     """Store extracted data awaiting user confirmation. Returns UUID key."""
     now = time.time()
-    expired = [
-        k
-        for k, v in _pending_confirmations.items()
-        if now - v["ts"] > _PENDING_TTL_SECONDS
-    ]
+    expired = [k for k, v in _pending_confirmations.items() if now - v["ts"] > _PENDING_TTL_SECONDS]
     for k in expired:
         del _pending_confirmations[k]
 
@@ -295,9 +289,7 @@ def _build_preview_text(data: dict, duplicates: list[dict] | None = None) -> str
         lines = [f"📊 *Preview Investasi*\n"]
         for item in items:
             val = float(item.get("value", 0))
-            lines.append(
-                f"  • {item.get('name', 'Unknown')}: Rp {format_number(val)} ({item.get('platform', '')})"
-            )
+            lines.append(f"  • {item.get('name', 'Unknown')}: Rp {format_number(val)} ({item.get('platform', '')})")
         lines.append(f"\n📝 {data.get('summary', '')}")
         text = "\n".join(lines)
 
@@ -380,12 +372,8 @@ def _build_confirm_keyboard(pending_key: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton(
-                    "✅ Simpan", callback_data=f"cfm_save_{pending_key}"
-                ),
-                InlineKeyboardButton(
-                    "❌ Batal", callback_data=f"cfm_cancel_{pending_key}"
-                ),
+                InlineKeyboardButton("✅ Simpan", callback_data=f"cfm_save_{pending_key}"),
+                InlineKeyboardButton("❌ Batal", callback_data=f"cfm_cancel_{pending_key}"),
             ]
         ]
     )
@@ -616,11 +604,7 @@ def _build_edit_preview(pending_data: dict) -> str:
             old_val = current.get(field, "")
             lines.append(f"  • {field}: `{old_val}` → `{new_val}`")
 
-        unchanged = {
-            k: v
-            for k, v in current.items()
-            if k not in updates and k != "_row" and v != ""
-        }
+        unchanged = {k: v for k, v in current.items() if k not in updates and k != "_row" and v != ""}
         if unchanged:
             lines.append("\nData lain (tidak berubah):")
             for field, val in list(unchanged.items())[:5]:
@@ -676,13 +660,8 @@ def _build_edit_preview(pending_data: dict) -> str:
         lines.append(f"1️⃣ *Transaksi Housing*: Rp {kpr_amount:,.0f}")
         if parent_amt > 0:
             lines.append(f"2️⃣ *Income Family Support*: Rp {parent_amt:,.0f}")
-        lines.append(
-            f"3️⃣ *Sisa Hutang KPR*: Rp {debt_remaining:,.0f} → Rp {new_remaining:,.0f}"
-        )
-        lines.append(
-            f"4️⃣ *Cash (Tabungan)*: Rp {cash_balance:,.0f} → Rp {new_cash:,.0f} "
-            f"(bayar Rp {user_portion:,.0f})"
-        )
+        lines.append(f"3️⃣ *Sisa Hutang KPR*: Rp {debt_remaining:,.0f} → Rp {new_remaining:,.0f}")
+        lines.append(f"4️⃣ *Cash (Tabungan)*: Rp {cash_balance:,.0f} → Rp {new_cash:,.0f} (bayar Rp {user_portion:,.0f})")
         if pending_data.get("notes"):
             lines.append(f"\nCatatan: {pending_data['notes']}")
         return "\n".join(lines)
@@ -702,9 +681,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
         pending_key = data_str[len("cfm_save_") :]
         pending_data = _retrieve_pending(pending_key, user_id)
         if pending_data is None:
-            await query.edit_message_text(
-                "⏰ Data sudah expired atau tidak ditemukan. Coba upload ulang."
-            )
+            await query.edit_message_text("⏰ Data sudah expired atau tidak ditemukan. Coba upload ulang.")
             return
 
         em = get_excel_manager(context)
@@ -716,9 +693,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                 row_number = pending_data["row_number"]
                 updates = pending_data["updates"]
                 result = em.update_row(sheet, row_number, updates)
-                lines = [
-                    f"✅ Data berhasil diperbarui! (baris {row_number} di {sheet})\n"
-                ]
+                lines = [f"✅ Data berhasil diperbarui! (baris {row_number} di {sheet})\n"]
                 for field, new_val in updates.items():
                     lines.append(f"  • {field}: {result.get(field, new_val)}")
                 await query.edit_message_text("\n".join(lines))
@@ -728,9 +703,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                 sheet = pending_data["sheet"]
                 row_numbers = pending_data["row_numbers"]
                 count = em.delete_rows(sheet, row_numbers)
-                await query.edit_message_text(
-                    f"✅ {count} baris berhasil dihapus dari {sheet}."
-                )
+                await query.edit_message_text(f"✅ {count} baris berhasil dihapus dari {sheet}.")
                 return
 
             elif action == "propose_add":
@@ -784,9 +757,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                         name=data.get("name", ""),
                         asset_type=data.get("type", "Other"),
                         current_value=float(data.get("current_value", 0)),
-                        purchase_value=float(
-                            data.get("purchase_value", data.get("current_value", 0))
-                        ),
+                        purchase_value=float(data.get("purchase_value", data.get("current_value", 0))),
                         platform=data.get("platform", ""),
                         notes=data.get("notes", ""),
                     )
@@ -803,9 +774,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                         debt_type=data.get("type", "Other"),
                         bank=data.get("bank", ""),
                         total_loan=float(data.get("total_loan", 0)),
-                        remaining=float(
-                            data.get("remaining", data.get("total_loan", 0))
-                        ),
+                        remaining=float(data.get("remaining", data.get("total_loan", 0))),
                         monthly_payment=float(data.get("monthly_payment", 0)),
                         interest_rate=float(data.get("interest_rate", 0)),
                         tenor_months=int(data.get("tenor", 0)),
@@ -856,9 +825,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
 
                 new_remaining = debt_remaining - kpr_amount
                 em.update_row("debts", debt_row, {"remaining": new_remaining})
-                results.append(
-                    f"✅ Sisa KPR: Rp {debt_remaining:,.0f} → Rp {new_remaining:,.0f}"
-                )
+                results.append(f"✅ Sisa KPR: Rp {debt_remaining:,.0f} → Rp {new_remaining:,.0f}")
 
                 new_cash = cash_balance - user_portion
                 em.update_row(
@@ -869,14 +836,9 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                         "current_value": new_cash,
                     },
                 )
-                results.append(
-                    f"✅ Cash: Rp {cash_balance:,.0f} → Rp {new_cash:,.0f} "
-                    f"(-Rp {user_portion:,.0f})"
-                )
+                results.append(f"✅ Cash: Rp {cash_balance:,.0f} → Rp {new_cash:,.0f} (-Rp {user_portion:,.0f})")
 
-                await query.edit_message_text(
-                    f"🏠 Pembayaran KPR {month} berhasil!\n\n" + "\n".join(results)
-                )
+                await query.edit_message_text(f"🏠 Pembayaran KPR {month} berhasil!\n\n" + "\n".join(results))
                 return
 
             doc_type = pending_data.get("type", "unknown")
@@ -885,8 +847,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                 result = em.add_transaction(
                     amount=amount,
                     category=pending_data.get("category", "Other"),
-                    description=pending_data.get("description", "")
-                    or pending_data.get("merchant", ""),
+                    description=pending_data.get("description", "") or pending_data.get("merchant", ""),
                     payment_method="Other",
                 )
                 await query.edit_message_text(
@@ -925,9 +886,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                             current_value=float(item.get("value", 0)),
                         )
                         recorded += 1
-                        lines.append(
-                            f"  ✅ {item.get('name')}: Rp {format_number(float(item.get('value', 0)))}"
-                        )
+                        lines.append(f"  ✅ {item.get('name')}: Rp {format_number(float(item.get('value', 0)))}")
                     except Exception as e:
                         lines.append(f"  ⚠️ {item.get('name')}: gagal ({e})")
                 lines.append(f"\n{recorded}/{len(items)} investasi tercatat.")
@@ -1024,9 +983,7 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                 # Auto-update Cash (Tabungan) balance in Assets
                 cash_msg = ""
                 try:
-                    cash_rows = em.search_rows(
-                        "assets", {"name": "Cash (Tabungan)", "type": "Kas"}, limit=1
-                    )
+                    cash_rows = em.search_rows("assets", {"name": "Cash (Tabungan)", "type": "Kas"}, limit=1)
                     if cash_rows:
                         cash_row = cash_rows[0]
                         old_balance = float(cash_row.get("current_value", 0) or 0)
@@ -1039,11 +996,11 @@ async def handle_extraction_confirm(update: Update, context: ContextTypes.DEFAUL
                                 "current_value": new_balance,
                             },
                         )
-                        cash_msg = f"\n💰 Cash (Tabungan): Rp {format_number(old_balance)} → Rp {format_number(new_balance)}"
-                    else:
                         cash_msg = (
-                            "\n⚠️ Row 'Cash (Tabungan)' tidak ditemukan di Assets."
+                            f"\n💰 Cash (Tabungan): Rp {format_number(old_balance)} → Rp {format_number(new_balance)}"
                         )
+                    else:
+                        cash_msg = "\n⚠️ Row 'Cash (Tabungan)' tidak ditemukan di Assets."
                 except Exception as cash_err:
                     cash_msg = f"\n⚠️ Gagal update Cash: {cash_err}"
 
@@ -1110,9 +1067,7 @@ async def quick_record(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = parse_amount(args[0])
     except ValueError:
-        await update.message.reply_text(
-            "Invalid amount. Try values like 50000, 50.000, or Rp50,000."
-        )
+        await update.message.reply_text("Invalid amount. Try values like 50000, 50.000, or Rp50,000.")
         return
 
     category = match_category(args[1])
@@ -1151,9 +1106,7 @@ async def spend_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
         await reply_unauthorized(update)
         return ConversationHandler.END
-    await update.message.reply_text(
-        "How much did you spend?\nExamples: 50000, 50.000, Rp50,000"
-    )
+    await update.message.reply_text("How much did you spend?\nExamples: 50000, 50.000, Rp50,000")
     return SPEND_AMOUNT
 
 
@@ -1162,9 +1115,7 @@ async def spend_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = parse_amount(update.message.text)
         context.user_data["spend_amount"] = amount
     except ValueError:
-        await update.message.reply_text(
-            "Please enter a valid amount, for example 50000 or Rp50.000."
-        )
+        await update.message.reply_text("Please enter a valid amount, for example 50000 or Rp50.000.")
         return SPEND_AMOUNT
 
     keyboard = []
@@ -1253,9 +1204,7 @@ async def income_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
         await reply_unauthorized(update)
         return ConversationHandler.END
-    await update.message.reply_text(
-        "Enter income amount.\nExamples: 8000000, 8.000.000, Rp8,000,000"
-    )
+    await update.message.reply_text("Enter income amount.\nExamples: 8000000, 8.000.000, Rp8,000,000")
     return INCOME_AMOUNT
 
 
@@ -1264,9 +1213,7 @@ async def income_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = parse_amount(update.message.text)
         context.user_data["income_amount"] = amount
     except ValueError:
-        await update.message.reply_text(
-            "Please enter a valid amount, for example 8000000 or Rp8.000.000."
-        )
+        await update.message.reply_text("Please enter a valid amount, for example 8000000 or Rp8.000.000.")
         return INCOME_AMOUNT
 
     await update.message.reply_text(
@@ -1349,9 +1296,7 @@ async def save_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     context.user_data["save_type"] = query.data.replace("stype_", "")
-    await query.edit_message_text(
-        f"Type: {context.user_data['save_type']}\nEnter amount:"
-    )
+    await query.edit_message_text(f"Type: {context.user_data['save_type']}\nEnter amount:")
     return SAVE_AMOUNT
 
 
@@ -1360,9 +1305,7 @@ async def save_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = parse_amount(update.message.text)
         context.user_data["save_amount"] = amount
     except ValueError:
-        await update.message.reply_text(
-            "Please enter a valid amount, for example 1000000 or Rp1.000.000."
-        )
+        await update.message.reply_text("Please enter a valid amount, for example 1000000 or Rp1.000.000.")
         return SAVE_AMOUNT
 
     keyboard = []
@@ -1427,14 +1370,10 @@ async def summary_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append(f"Income:   {format_number(income['total'])}")
     lines.append(f"Spending: {format_number(spending['total'])}")
     net = income["total"] - spending["total"]
-    lines.append(
-        f"Net:      {format_number(net)} {'(surplus)' if net >= 0 else '(deficit)'}"
-    )
+    lines.append(f"Net:      {format_number(net)} {'(surplus)' if net >= 0 else '(deficit)'}")
 
     if spending["by_category"]:
-        lines.append(
-            f"\nSpending Breakdown ({spending['transaction_count']} transactions):"
-        )
+        lines.append(f"\nSpending Breakdown ({spending['transaction_count']} transactions):")
         for cat, amt in sorted(spending["by_category"].items(), key=lambda x: -x[1]):
             pct = (amt / spending["total"] * 100) if spending["total"] > 0 else 0
             lines.append(f"  {cat}: {format_number(amt)} ({pct:.0f}%)")
@@ -1467,9 +1406,7 @@ async def budget_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"({item['percentage']:.0f}%)"
         )
 
-    lines.append(
-        f"\nTotal: {format_number(budget['total_spent'])}/{format_number(budget['total_budget'])}"
-    )
+    lines.append(f"\nTotal: {format_number(budget['total_spent'])}/{format_number(budget['total_budget'])}")
     lines.append(f"Remaining: {format_number(budget['total_remaining'])}")
 
     await update.message.reply_text("\n".join(lines))
@@ -1557,9 +1494,7 @@ async def dashboard_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Spending by Category:",
     ]
     if data["spending_by_category"]:
-        for cat, amt in sorted(
-            data["spending_by_category"].items(), key=lambda x: -x[1]
-        ):
+        for cat, amt in sorted(data["spending_by_category"].items(), key=lambda x: -x[1]):
             lines.append(f"  {cat}: {format_number(amt)}")
     else:
         lines.append("  No spending data for this month.")
@@ -1595,9 +1530,7 @@ async def categories_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for dt in ExcelManager.DEBT_TYPES:
         lines.append(f"  - {dt}")
     lines.append("\nQuick Keywords:")
-    lines.append(
-        "  food, makan, transport, bensin, kos, listrik, pulsa, belanja, health"
-    )
+    lines.append("  food, makan, transport, bensin, kos, listrik, pulsa, belanja, health")
     await update.message.reply_text("\n".join(lines))
 
 
@@ -1665,9 +1598,7 @@ async def invest_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
     hint = examples.get(asset_type, "e.g. asset name")
 
     await query.edit_message_text(
-        f"Type: {asset_type}\n"
-        f"Platform: {platform}\n\n"
-        f"Enter the security/asset name ({hint}):"
+        f"Type: {asset_type}\nPlatform: {platform}\n\nEnter the security/asset name ({hint}):"
     )
     return INVEST_NAME
 
@@ -1675,9 +1606,7 @@ async def invest_platform(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def invest_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text.strip()
     if not name:
-        await update.message.reply_text(
-            "Name cannot be empty. Please enter asset name:"
-        )
+        await update.message.reply_text("Name cannot be empty. Please enter asset name:")
         return INVEST_NAME
 
     context.user_data["invest_name"] = name
@@ -1696,9 +1625,7 @@ async def invest_purchase(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = parse_amount(update.message.text)
         context.user_data["invest_purchase"] = amount
     except ValueError:
-        await update.message.reply_text(
-            "Invalid amount. Enter purchase value like 50000000 or Rp50.000.000:"
-        )
+        await update.message.reply_text("Invalid amount. Enter purchase value like 50000000 or Rp50.000.000:")
         return INVEST_PURCHASE
 
     await update.message.reply_text(
@@ -1714,14 +1641,11 @@ async def invest_current(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = parse_amount(update.message.text)
         context.user_data["invest_current"] = amount
     except ValueError:
-        await update.message.reply_text(
-            "Invalid amount. Enter current value like 55000000 or Rp55.000.000:"
-        )
+        await update.message.reply_text("Invalid amount. Enter current value like 55000000 or Rp55.000.000:")
         return INVEST_CURRENT
 
     await update.message.reply_text(
-        f"Current value: {format_number(amount)}\n\n"
-        "Enter any notes (or /skip to leave blank):"
+        f"Current value: {format_number(amount)}\n\nEnter any notes (or /skip to leave blank):"
     )
     return INVEST_NOTES
 
@@ -1772,9 +1696,7 @@ async def portfolio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     summary = get_excel_manager(context).get_investment_summary()
 
     if summary["asset_count"] == 0:
-        await update.message.reply_text(
-            "No investments recorded yet.\nUse /invest to add your first investment."
-        )
+        await update.message.reply_text("No investments recorded yet.\nUse /invest to add your first investment.")
         return
 
     lines = [
@@ -1790,21 +1712,13 @@ async def portfolio_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     lines.append("\nBy Asset Type:")
     for atype, data in summary["by_type"].items():
-        pct = (
-            (data["current_value"] / summary["total_current"] * 100)
-            if summary["total_current"] > 0
-            else 0
-        )
-        lines.append(
-            f"\n  {atype} ({pct:.1f}%) - {format_number(data['current_value'])}"
-        )
+        pct = (data["current_value"] / summary["total_current"] * 100) if summary["total_current"] > 0 else 0
+        lines.append(f"\n  {atype} ({pct:.1f}%) - {format_number(data['current_value'])}")
         for item in data["items"]:
             igl = item["gain_loss"]
             igl_text = f"+{format_number(igl)}" if igl >= 0 else format_number(igl)
             platform_text = f" [{item['platform']}]" if item["platform"] else ""
-            lines.append(
-                f"    {item['name']}{platform_text}: {format_number(item['current_value'])} ({igl_text})"
-            )
+            lines.append(f"    {item['name']}{platform_text}: {format_number(item['current_value'])} ({igl_text})")
 
     if summary["by_platform"]:
         lines.append("\nBy Platform:")
@@ -1885,9 +1799,7 @@ async def debt_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["debt_name"] = name
 
     await update.message.reply_text(
-        f"Name: {name}\n\n"
-        "Enter total loan amount (IDR):\n"
-        "Examples: 500000000, Rp500.000.000"
+        f"Name: {name}\n\nEnter total loan amount (IDR):\nExamples: 500000000, Rp500.000.000"
     )
     return DEBT_TOTAL
 
@@ -1901,9 +1813,7 @@ async def debt_total(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DEBT_TOTAL
 
     await update.message.reply_text(
-        f"Total loan: {format_number(amount)}\n\n"
-        "Enter remaining balance (IDR):\n"
-        "(How much you still owe)"
+        f"Total loan: {format_number(amount)}\n\nEnter remaining balance (IDR):\n(How much you still owe)"
     )
     return DEBT_REMAINING
 
@@ -1917,8 +1827,7 @@ async def debt_remaining(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DEBT_REMAINING
 
     await update.message.reply_text(
-        f"Remaining: {format_number(amount)}\n\n"
-        "Enter monthly payment (cicilan per bulan) in IDR:"
+        f"Remaining: {format_number(amount)}\n\nEnter monthly payment (cicilan per bulan) in IDR:"
     )
     return DEBT_MONTHLY
 
@@ -1971,9 +1880,7 @@ async def debt_tenor(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tenor_display = f"{tenor_months} months ({tenor_months // 12} years {tenor_months % 12} months)"
         context.user_data["debt_tenor"] = tenor_months
     except ValueError:
-        await update.message.reply_text(
-            "Enter a number. E.g. 10 for 10 years, or 120 for 120 months:"
-        )
+        await update.message.reply_text("Enter a number. E.g. 10 for 10 years, or 120 for 120 months:")
         return DEBT_TENOR
 
     await update.message.reply_text(
@@ -2040,9 +1947,7 @@ async def debt_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             parts = start_str.replace("/", "-").split("-")
             now = dt.now()
-            months_elapsed = (now.year - int(parts[0])) * 12 + (
-                now.month - int(parts[1])
-            )
+            months_elapsed = (now.year - int(parts[0])) * 12 + (now.month - int(parts[1]))
             months_remaining = max(0, ud.get("debt_tenor", 0) - months_elapsed)
             if notes:
                 notes = f"Start: {start_str} | Elapsed: {months_elapsed}m | Remaining: {months_remaining}m | {notes}"
@@ -2115,9 +2020,7 @@ async def liabilities_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     summary = get_excel_manager(context).get_debt_summary()
 
     if summary["debt_count"] == 0:
-        await update.message.reply_text(
-            "No debts recorded yet.\nUse /debt to add your first debt."
-        )
+        await update.message.reply_text("No debts recorded yet.\nUse /debt to add your first debt.")
         return
 
     lines = [
@@ -2187,11 +2090,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         inv_detail = ""
         for atype, data in inv["by_type"].items():
-            pct = (
-                (data["current_value"] / inv["total_current"] * 100)
-                if inv["total_current"] > 0
-                else 0
-            )
+            pct = (data["current_value"] / inv["total_current"] * 100) if inv["total_current"] > 0 else 0
             inv_detail += f"\n  {atype} ({pct:.1f}%): Rp {data['current_value']:,.0f}"
             for item in data["items"]:
                 p = f" [{item['platform']}]" if item["platform"] else ""
@@ -2209,9 +2108,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
         spending_detail = ""
-        for cat, amt in sorted(
-            spending.get("by_category", {}).items(), key=lambda x: x[1], reverse=True
-        ):
+        for cat, amt in sorted(spending.get("by_category", {}).items(), key=lambda x: x[1], reverse=True):
             spending_detail += f"\n  {cat}: Rp {amt:,.0f}"
 
         savings_detail = ""
@@ -2341,9 +2238,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     for i in range(0, len(answer), 4000):
                         await update.message.reply_text(answer[i : i + 4000])
                 else:
-                    await update.message.reply_text(
-                        answer or "🤔 Maaf, saya tidak punya jawaban."
-                    )
+                    await update.message.reply_text(answer or "🤔 Maaf, saya tidak punya jawaban.")
                 return
 
             messages.append(assistant_msg)
@@ -2393,11 +2288,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         try:
                             current_rows = em.search_rows(sheet, {}, limit=1000)
                             current_row = next(
-                                (
-                                    r
-                                    for r in current_rows
-                                    if r.get("_row") == row_number
-                                ),
+                                (r for r in current_rows if r.get("_row") == row_number),
                                 None,
                             )
                         except Exception:
@@ -2420,9 +2311,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         try:
                             all_rows = em.search_rows(sheet, {}, limit=1000)
                             for rn in row_numbers:
-                                match = next(
-                                    (r for r in all_rows if r.get("_row") == rn), None
-                                )
+                                match = next((r for r in all_rows if r.get("_row") == rn), None)
                                 if match:
                                     rows_data.append(match)
                         except Exception:
@@ -2458,9 +2347,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 {
                                     "role": "tool",
                                     "tool_call_id": tool_call.id,
-                                    "content": json.dumps(
-                                        {"error": "KPR debt not found in Debts sheet"}
-                                    ),
+                                    "content": json.dumps({"error": "KPR debt not found in Debts sheet"}),
                                 }
                             )
                             continue
@@ -2477,9 +2364,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         cash_balance = 0.0
                         cash_row = 0
                         if cash_rows:
-                            cash_balance = float(
-                                cash_rows[0].get("current_value", 0) or 0
-                            )
+                            cash_balance = float(cash_rows[0].get("current_value", 0) or 0)
                             cash_row = cash_rows[0]["_row"]
 
                         pending_data = {
@@ -2509,15 +2394,11 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         {
                             "role": "tool",
                             "tool_call_id": tool_call.id,
-                            "content": json.dumps(
-                                {"error": f"Unknown function: {fn_name}"}
-                            ),
+                            "content": json.dumps({"error": f"Unknown function: {fn_name}"}),
                         }
                     )
 
-        await update.message.reply_text(
-            "⚠️ Terlalu banyak langkah pencarian. Coba pertanyaan yang lebih spesifik."
-        )
+        await update.message.reply_text("⚠️ Terlalu banyak langkah pencarian. Coba pertanyaan yang lebih spesifik.")
 
     except Exception as e:
         await update.message.reply_text(
@@ -2547,8 +2428,7 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
         await update.message.reply_text(
-            "Image analysis belum bisa digunakan.\n"
-            "Set OPENAI_API_KEY di file .env untuk mengaktifkan fitur ini."
+            "Image analysis belum bisa digunakan.\nSet OPENAI_API_KEY di file .env untuk mengaktifkan fitur ini."
         )
         return
 
@@ -2648,8 +2528,7 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             amount = float(data.get("amount", 0))
             if amount <= 0:
                 await update.message.reply_text(
-                    f"📋 {data.get('summary', '')}\n\n"
-                    "Tidak bisa mendeteksi jumlah. Catat manual: /spend"
+                    f"📋 {data.get('summary', '')}\n\nTidak bisa mendeteksi jumlah. Catat manual: /spend"
                 )
                 return
             pending_data = {
@@ -2674,9 +2553,7 @@ async def image_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif doc_type == "income":
             amount = float(data.get("amount", 0))
             if amount <= 0:
-                await update.message.reply_text(
-                    f"📋 {data.get('summary', '')}\n\nCatat manual: /income"
-                )
+                await update.message.reply_text(f"📋 {data.get('summary', '')}\n\nCatat manual: /income")
                 return
             pending_data = {
                 "type": "income",
@@ -2765,9 +2642,7 @@ async def health_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     income = em.get_income_summary(month)
     spending = em.get_spending_summary(month)
 
-    monthly_income = (
-        income["total"] if income["total"] > 0 else 22_719_200
-    )  # fallback to known salary
+    monthly_income = income["total"] if income["total"] > 0 else 22_719_200  # fallback to known salary
     monthly_spending = spending["total"]
     total_assets = inv["total_current"]
     total_debt = debt["total_remaining"]
@@ -2795,11 +2670,7 @@ async def health_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         scores["DTI Ratio"] = 0
 
     # 2. Savings Rate — healthy > 20% of income
-    savings_rate = (
-        ((monthly_income - monthly_spending) / monthly_income * 100)
-        if monthly_income > 0
-        else 0
-    )
+    savings_rate = ((monthly_income - monthly_spending) / monthly_income * 100) if monthly_income > 0 else 0
     if savings_rate >= 30:
         scores["Savings Rate"] = 100
     elif savings_rate >= 20:
@@ -2815,11 +2686,7 @@ async def health_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 3. Emergency Fund — healthy = 6-12 months expenses
     monthly_expenses_est = max(monthly_spending, monthly_debt_payment + 5_000_000)
-    emergency_months = (
-        (total_kas + total_savings) / monthly_expenses_est
-        if monthly_expenses_est > 0
-        else 0
-    )
+    emergency_months = (total_kas + total_savings) / monthly_expenses_est if monthly_expenses_est > 0 else 0
     if emergency_months >= 12:
         scores["Emergency Fund"] = 100
     elif emergency_months >= 6:
@@ -2932,18 +2799,12 @@ async def health_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append(f"  ⚠️ DTI {dti:.0f}% terlalu tinggi. Hindari hutang baru.")
     if savings_rate < 20:
         target_save = monthly_income * 0.2 - (monthly_income - monthly_spending)
-        lines.append(
-            f"  ⚠️ Tingkatkan savings rate. Target tambahan: {format_number(max(0, target_save))}/bulan"
-        )
+        lines.append(f"  ⚠️ Tingkatkan savings rate. Target tambahan: {format_number(max(0, target_save))}/bulan")
     if emergency_months < 6:
         target_ef = monthly_expenses_est * 6 - (total_kas + total_savings)
-        lines.append(
-            f"  ⚠️ Emergency fund kurang. Butuh tambahan: {format_number(max(0, target_ef))}"
-        )
+        lines.append(f"  ⚠️ Emergency fund kurang. Butuh tambahan: {format_number(max(0, target_ef))}")
     if asset_debt_ratio < 1:
-        lines.append(
-            f"  ⚠️ Aset masih lebih kecil dari hutang. Fokus investasi & bayar cicilan."
-        )
+        lines.append(f"  ⚠️ Aset masih lebih kecil dari hutang. Fokus investasi & bayar cicilan.")
 
     # Positive notes
     if type_count >= 4:
@@ -3001,9 +2862,7 @@ async def updateprices_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     em = get_excel_manager(context)
-    msg = await update.message.reply_text(
-        "⏳ Mengambil harga saham terbaru dari Yahoo Finance..."
-    )
+    msg = await update.message.reply_text("⏳ Mengambil harga saham terbaru dari Yahoo Finance...")
 
     try:
         results = em.update_stock_prices()
@@ -3182,6 +3041,88 @@ def _extract_pdf_text(pdf_path: str, api_key: str, password: str = "") -> str:
     return "\n".join(parts)
 
 
+def _chunk_document_text(text: str, max_chars: int = _PDF_TEXT_LIMIT) -> list[str]:
+    if len(text) <= max_chars:
+        return [text]
+
+    pages = text.split("\f")
+    if len(pages) <= 1:
+        pages = re.split(r"(?=\n--- Page \d+ ---\n)", text)
+
+    if len(pages) <= 1:
+        chunks = []
+        for start in range(0, len(text), max_chars):
+            chunks.append(text[start : start + max_chars])
+        return chunks
+
+    chunks: list[str] = []
+    current_chunk = ""
+    for page in pages:
+        if not page.strip():
+            continue
+        if current_chunk and len(current_chunk) + len(page) + 1 > max_chars:
+            chunks.append(current_chunk)
+            current_chunk = page
+        else:
+            current_chunk = current_chunk + ("\f" if current_chunk else "") + page
+    if current_chunk.strip():
+        chunks.append(current_chunk)
+
+    return chunks if chunks else [text[:max_chars]]
+
+
+def _merge_extraction_results(results: list[dict]) -> dict:
+    if not results:
+        return {"type": "other", "summary": "No data extracted"}
+    if len(results) == 1:
+        return results[0]
+
+    merged_type = results[0].get("type", "other")
+    for r in results[1:]:
+        if r.get("type", "other") != merged_type:
+            merged_type = results[0].get("type", "other")
+            break
+
+    if merged_type == "cc_statement":
+        all_txns: list[dict] = []
+        seen_keys: set[tuple] = set()
+        card = results[0].get("card", "Credit Card")
+        period = results[0].get("period", "")
+        total = 0.0
+
+        for r in results:
+            for tx in r.get("transactions", []):
+                tx_key = (
+                    tx.get("date", ""),
+                    tx.get("description", ""),
+                    float(tx.get("amount", 0)),
+                )
+                if tx_key not in seen_keys:
+                    seen_keys.add(tx_key)
+                    all_txns.append(tx)
+                    total += float(tx.get("amount", 0))
+
+        return {
+            "type": "cc_statement",
+            "card": card,
+            "period": period,
+            "transactions": all_txns,
+            "total": total,
+            "summary": f"E-statement {card} ({period}), {len(all_txns)} transaksi (merged from {len(results)} chunks)",
+        }
+
+    elif merged_type == "payslip":
+        best = max(results, key=lambda r: float(r.get("net_pay", 0)))
+        return best
+
+    else:
+        summaries = [r.get("summary", "") for r in results if r.get("summary")]
+        return {
+            "type": merged_type,
+            "summary": " | ".join(summaries) if summaries else "Document analyzed",
+        }
+
+
 # ── Document handler (PDF statements) ──
 
 
@@ -3200,17 +3141,14 @@ async def _analyze_and_confirm_document(
     api_key = os.getenv("OPENAI_API_KEY", "")
 
     if len(text_content) < 20:
-        await update.message.reply_text(
-            "Tidak bisa membaca isi file. Coba kirim sebagai screenshot/foto."
-        )
+        await update.message.reply_text("Tidak bisa membaca isi file. Coba kirim sebagai screenshot/foto.")
         return
 
-    if len(text_content) > _PDF_TEXT_LIMIT:
-        text_content = text_content[:_PDF_TEXT_LIMIT] + "\n...(truncated)"
+    chunks = _chunk_document_text(text_content)
 
     em = get_excel_manager(context)
 
-    prompt = (
+    prompt_template = (
         "Kamu adalah Financial Data Extraction Expert.\n"
         "Analisis dokumen keuangan berikut dan extract transaksi dalam format JSON.\n\n"
         "=== E-STATEMENT KARTU KREDIT ===\n"
@@ -3256,26 +3194,36 @@ async def _analyze_and_confirm_document(
         '{"type": "other", "summary": "deskripsi dokumen"}\n\n'
         f"User message: {caption}\n\n"
         "HANYA return JSON valid, tanpa markdown code block.\n\n"
-        f"ISI DOKUMEN:\n{text_content}"
     )
 
     client = openai.OpenAI(api_key=api_key)
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=8000,
-    )
+    chunk_results: list[dict] = []
 
-    raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
+    for chunk in chunks:
+        prompt = prompt_template + f"ISI DOKUMEN:\n{chunk}"
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=8000,
+        )
 
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        await update.message.reply_text(f"Hasil analisis:\n{raw[:2000]}")
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+
+        try:
+            chunk_results.append(json.loads(raw))
+        except json.JSONDecodeError:
+            if len(chunks) == 1:
+                await update.message.reply_text(f"Hasil analisis:\n{raw[:2000]}")
+                return
+
+    if not chunk_results:
+        await update.message.reply_text("Gagal menganalisis dokumen. Coba kirim ulang.")
         return
+
+    data = _merge_extraction_results(chunk_results) if len(chunk_results) > 1 else chunk_results[0]
 
     doc_type = data.get("type", "other")
     user_id = update.effective_user.id
@@ -3286,10 +3234,7 @@ async def _analyze_and_confirm_document(
         period = data.get("period", "")
 
         if not transactions:
-            await update.message.reply_text(
-                f"💳 E-Statement {card} ({period})\n\n"
-                "Tidak ada transaksi yang terdeteksi."
-            )
+            await update.message.reply_text(f"💳 E-Statement {card} ({period})\n\nTidak ada transaksi yang terdeteksi.")
             return
 
         valid_txns = []
@@ -3309,8 +3254,7 @@ async def _analyze_and_confirm_document(
 
         if not valid_txns:
             await update.message.reply_text(
-                f"💳 E-Statement {card} ({period})\n\n"
-                "Tidak ada transaksi valid yang terdeteksi."
+                f"💳 E-Statement {card} ({period})\n\nTidak ada transaksi valid yang terdeteksi."
             )
             return
 
@@ -3346,8 +3290,7 @@ async def _analyze_and_confirm_document(
         net_pay = float(data.get("net_pay", 0))
         if net_pay <= 0:
             await update.message.reply_text(
-                f"📋 {data.get('summary', '')}\n\n"
-                "Tidak bisa mendeteksi net pay. Catat manual: /income"
+                f"📋 {data.get('summary', '')}\n\nTidak bisa mendeteksi net pay. Catat manual: /income"
             )
             return
 
@@ -3460,18 +3403,12 @@ async def pdf_password_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data["pdf_tmp_path"] = tmp_path
         context.user_data["pdf_api_key"] = api_key
         context.user_data["pdf_caption"] = caption
-        await update.message.reply_text(
-            "❌ Password salah. Coba lagi atau ketik /cancel untuk membatalkan."
-        )
+        await update.message.reply_text("❌ Password salah. Coba lagi atau ketik /cancel untuk membatalkan.")
         return PDF_PASSWORD
     except Exception as e:
         await update.message.reply_text(f"Error membaca dokumen: {str(e)[:500]}")
     finally:
-        if (
-            "pdf_tmp_path" not in context.user_data
-            and tmp_path
-            and os.path.exists(tmp_path)
-        ):
+        if "pdf_tmp_path" not in context.user_data and tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
     return ConversationHandler.END
@@ -3498,9 +3435,7 @@ def main():
     spend_conv = ConversationHandler(
         entry_points=[CommandHandler("spend", spend_start)],
         states={
-            SPEND_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, spend_amount)
-            ],
+            SPEND_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, spend_amount)],
             SPEND_CATEGORY: [CallbackQueryHandler(spend_category, pattern=r"^scat_")],
             SPEND_DESC: [MessageHandler(filters.TEXT, spend_desc)],
             SPEND_PAYMENT: [CallbackQueryHandler(spend_payment, pattern=r"^spay_")],
@@ -3511,12 +3446,8 @@ def main():
     income_conv = ConversationHandler(
         entry_points=[CommandHandler("income", income_start)],
         states={
-            INCOME_AMOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, income_amount)
-            ],
-            INCOME_SOURCE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, income_source)
-            ],
+            INCOME_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, income_amount)],
+            INCOME_SOURCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, income_source)],
             INCOME_CATEGORY: [CallbackQueryHandler(income_category, pattern=r"^icat_")],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
@@ -3538,12 +3469,8 @@ def main():
             INVEST_TYPE: [CallbackQueryHandler(invest_type, pattern=r"^invt_")],
             INVEST_PLATFORM: [CallbackQueryHandler(invest_platform, pattern=r"^invp_")],
             INVEST_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, invest_name)],
-            INVEST_PURCHASE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, invest_purchase)
-            ],
-            INVEST_CURRENT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, invest_current)
-            ],
+            INVEST_PURCHASE: [MessageHandler(filters.TEXT & ~filters.COMMAND, invest_purchase)],
+            INVEST_CURRENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, invest_current)],
             INVEST_NOTES: [MessageHandler(filters.TEXT, invest_notes)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
@@ -3556,19 +3483,11 @@ def main():
             DEBT_BANK: [CallbackQueryHandler(debt_bank_cb, pattern=r"^dbnk_")],
             DEBT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_name)],
             DEBT_TOTAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_total)],
-            DEBT_REMAINING: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, debt_remaining)
-            ],
-            DEBT_MONTHLY: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, debt_monthly)
-            ],
-            DEBT_INTEREST: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, debt_interest)
-            ],
+            DEBT_REMAINING: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_remaining)],
+            DEBT_MONTHLY: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_monthly)],
+            DEBT_INTEREST: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_interest)],
             DEBT_TENOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_tenor)],
-            DEBT_START_DATE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, debt_start_date)
-            ],
+            DEBT_START_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, debt_start_date)],
             DEBT_NOTES: [MessageHandler(filters.TEXT, debt_notes)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
@@ -3601,9 +3520,7 @@ def main():
     doc_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Document.ALL, document_handler)],
         states={
-            PDF_PASSWORD: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, pdf_password_handler)
-            ],
+            PDF_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, pdf_password_handler)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -3630,9 +3547,7 @@ def main():
                     name="daily_stock_update",
                 )
             else:
-                logger.warning(
-                    "JobQueue not available — install python-telegram-bot[job-queue]"
-                )
+                logger.warning("JobQueue not available — install python-telegram-bot[job-queue]")
 
             stop_event = asyncio.Event()
             try:
