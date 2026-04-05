@@ -4,7 +4,6 @@ from health_score import HealthScoreGenerator
 
 @pytest.fixture
 def sample_data():
-    """Sample dashboard data from get_dashboard()."""
     return {
         "income": 8000000,
         "spending": 5000000,
@@ -19,33 +18,23 @@ def sample_data():
 
 @pytest.fixture
 def generator():
-    """HealthScoreGenerator instance."""
     return HealthScoreGenerator()
 
 
 def test_generate_scorecard_returns_png(generator, sample_data):
-    """Test that generate_scorecard returns valid PNG bytes."""
     result = generator.generate_scorecard(sample_data)
-
-    # Should return bytes
     assert isinstance(result, bytes)
-
-    # Should be valid PNG (magic number: 89 50 4E 47)
     assert result.startswith(b"\x89PNG")
-
-    # Should have reasonable size (at least 1KB)
     assert len(result) > 1000
 
 
 def test_generate_scorecard_with_all_indicators(generator, sample_data):
-    """Test that scorecard includes all 8 indicators."""
     result = generator.generate_scorecard(sample_data)
     assert isinstance(result, bytes)
     assert result.startswith(b"\x89PNG")
 
 
 def test_generate_scorecard_with_minimal_data(generator):
-    """Test that scorecard works with minimal data."""
     minimal = {
         "income": 5000000,
         "spending": 3000000,
@@ -59,3 +48,17 @@ def test_generate_scorecard_with_minimal_data(generator):
     result = generator.generate_scorecard(minimal)
     assert isinstance(result, bytes)
     assert result.startswith(b"\x89PNG")
+
+
+def test_scorecard_score_range(generator, sample_data):
+    indicators = generator._calculate_indicators(
+        sample_data["income"],
+        sample_data["spending"],
+        sample_data["savings_total"],
+        sample_data["investment_total"],
+        sample_data["debt_total"],
+        sample_data["net_worth"],
+        sample_data["budget_remaining"],
+    )
+    overall_score = round(sum(ind["score"] for ind in indicators) / len(indicators))
+    assert 0 <= overall_score <= 100
