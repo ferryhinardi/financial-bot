@@ -1477,12 +1477,13 @@ async def savings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             milestone_text = f"  🏅 Milestone: {', '.join(str(m) + '%' for m in milestones)}" if milestones else ""
             lines.append(
                 f"  {account}: Rp {format_number(data['balance'])} / Rp {format_number(data['goal'])}\n"
-                f"  {progress_bar}  •  {eta_text}"
-                + (f"\n{milestone_text}" if milestone_text else "")
+                f"  {progress_bar}  •  {eta_text}" + (f"\n{milestone_text}" if milestone_text else "")
             )
         elif data["goal"]:
             pct = data["balance"] / data["goal"] * 100
-            lines.append(f"  {account}: {format_number(data['balance'])} / Goal: {format_number(data['goal'])} ({pct:.0f}%)")
+            lines.append(
+                f"  {account}: {format_number(data['balance'])} / Goal: {format_number(data['goal'])} ({pct:.0f}%)"
+            )
         else:
             lines.append(f"  {account}: {format_number(data['balance'])}")
 
@@ -2130,8 +2131,8 @@ async def liabilities_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines))
 
 
-
 # ── NLP handlers ──
+
 
 async def nlp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /nlp [on|off] command."""
@@ -2151,16 +2152,12 @@ async def nlp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cmd = args[0].lower()
     if cmd == "on":
         nlp_state["enabled"] = True
-        await update.message.reply_text(
-            "🤖 Mode NLP aktif. Kirim pesan bebas seperti 'beli makan 50k'"
-        )
+        await update.message.reply_text("🤖 Mode NLP aktif. Kirim pesan bebas seperti 'beli makan 50k'")
     elif cmd == "off":
         nlp_state["enabled"] = False
         await update.message.reply_text("🤖 Mode NLP nonaktif.")
     else:
-        await update.message.reply_text(
-            "⚠️ Argumen tidak dikenal. Gunakan `/nlp on` atau `/nlp off`."
-        )
+        await update.message.reply_text("⚠️ Argumen tidak dikenal. Gunakan `/nlp on` atau `/nlp off`.")
 
 
 async def nlp_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2181,9 +2178,7 @@ async def nlp_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     nullclaw_path = os.getenv("NULLCLAW_PATH", "")
     if not nullclaw_path:
-        await message.reply_text(
-            "⚠️ NLP belum dikonfigurasi. Set NULLCLAW_PATH di .env untuk mengaktifkan fitur ini."
-        )
+        await message.reply_text("⚠️ NLP belum dikonfigurasi. Set NULLCLAW_PATH di .env untuk mengaktifkan fitur ini.")
         raise ApplicationHandlerStop
 
     from nlp_parser import NLPParser
@@ -2195,9 +2190,7 @@ async def nlp_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         result = parser.parse_financial_message(text)
     except RuntimeError:
-        await message.reply_text(
-            "⚠️ NLP belum dikonfigurasi. Set NULLCLAW_PATH di .env untuk mengaktifkan fitur ini."
-        )
+        await message.reply_text("⚠️ NLP belum dikonfigurasi. Set NULLCLAW_PATH di .env untuk mengaktifkan fitur ini.")
         raise ApplicationHandlerStop
     except Exception as e:
         await message.reply_text(f"⚠️ Gagal memproses pesan: {str(e)[:200]}")
@@ -2260,7 +2253,7 @@ async def handle_nlp_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_id = query.from_user.id
 
     if data_str.startswith("nlp_confirm:"):
-        pending_key = data_str[len("nlp_confirm:"):]
+        pending_key = data_str[len("nlp_confirm:") :]
         pending_data = _retrieve_pending(pending_key, user_id)
         if pending_data is None:
             await query.edit_message_text("⏰ Data sudah expired atau tidak ditemukan. Coba kirim ulang.")
@@ -2311,9 +2304,7 @@ async def handle_nlp_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     transaction_type="Deposit",
                 )
                 await query.edit_message_text(
-                    f"✅ Tabungan tercatat!\n\n"
-                    f"Jumlah: Rp {format_number(amount)}\n"
-                    f"Tanggal: {result['date']}"
+                    f"✅ Tabungan tercatat!\n\nJumlah: Rp {format_number(amount)}\nTanggal: {result['date']}"
                 )
             else:
                 await query.edit_message_text(f"⚠️ Tipe transaksi tidak dikenal: {tx_type}")
@@ -2321,7 +2312,7 @@ async def handle_nlp_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.edit_message_text(f"⚠️ Gagal menyimpan: {e}")
 
     elif data_str.startswith("nlp_cancel:"):
-        pending_key = data_str[len("nlp_cancel:"):]
+        pending_key = data_str[len("nlp_cancel:") :]
         _retrieve_pending(pending_key, user_id)
         await query.edit_message_text("❌ Dibatalkan. Data tidak disimpan.")
 
@@ -2915,193 +2906,63 @@ async def download_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def health_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Calculate and display comprehensive financial health score."""
     if not is_authorized(update):
         await reply_unauthorized(update)
         return
 
+    from health_score import HealthScoreGenerator
+
     em = get_excel_manager(context)
-    month = em._current_time().strftime("%Y-%m")
+    data = em.get_dashboard()
 
-    inv = em.get_investment_summary()
-    debt = em.get_debt_summary()
-    savings = em.get_savings_summary()
-    income = em.get_income_summary(month)
-    spending = em.get_spending_summary(month)
-
-    monthly_income = income["total"] if income["total"] > 0 else 22_719_200  # fallback to known salary
-    monthly_spending = spending["total"]
-    total_assets = inv["total_current"]
-    total_debt = debt["total_remaining"]
-    total_savings = savings["total_savings"]
-    monthly_debt_payment = debt["total_monthly"]
-    total_kas = inv["by_type"].get("Kas", {}).get("current_value", 0)
-    net_worth = total_assets - total_debt
-
-    # ── Calculate Scores (each 0-100) ──
-    scores = {}
-
-    # 1. Debt-to-Income Ratio (DTI) — healthy < 36%
-    dti = (monthly_debt_payment / monthly_income * 100) if monthly_income > 0 else 100
-    if dti <= 20:
-        scores["DTI Ratio"] = 100
-    elif dti <= 36:
-        scores["DTI Ratio"] = 80
-    elif dti <= 43:
-        scores["DTI Ratio"] = 60
-    elif dti <= 50:
-        scores["DTI Ratio"] = 40
-    elif dti <= 60:
-        scores["DTI Ratio"] = 20
-    else:
-        scores["DTI Ratio"] = 0
-
-    # 2. Savings Rate — healthy > 20% of income
-    savings_rate = ((monthly_income - monthly_spending) / monthly_income * 100) if monthly_income > 0 else 0
-    if savings_rate >= 30:
-        scores["Savings Rate"] = 100
-    elif savings_rate >= 20:
-        scores["Savings Rate"] = 80
-    elif savings_rate >= 10:
-        scores["Savings Rate"] = 60
-    elif savings_rate >= 5:
-        scores["Savings Rate"] = 40
-    elif savings_rate > 0:
-        scores["Savings Rate"] = 20
-    else:
-        scores["Savings Rate"] = 0
-
-    # 3. Emergency Fund — healthy = 6-12 months expenses
-    monthly_expenses_est = max(monthly_spending, monthly_debt_payment + 5_000_000)
-    emergency_months = (total_kas + total_savings) / monthly_expenses_est if monthly_expenses_est > 0 else 0
-    if emergency_months >= 12:
-        scores["Emergency Fund"] = 100
-    elif emergency_months >= 6:
-        scores["Emergency Fund"] = 80
-    elif emergency_months >= 3:
-        scores["Emergency Fund"] = 60
-    elif emergency_months >= 1:
-        scores["Emergency Fund"] = 40
-    else:
-        scores["Emergency Fund"] = 20
-
-    # 4. Investment Diversification
-    type_count = len(inv["by_type"])
-    platform_count = len(inv["by_platform"])
-    if type_count >= 4 and platform_count >= 3:
-        scores["Diversification"] = 100
-    elif type_count >= 3 and platform_count >= 2:
-        scores["Diversification"] = 80
-    elif type_count >= 2:
-        scores["Diversification"] = 60
-    elif type_count >= 1:
-        scores["Diversification"] = 40
-    else:
-        scores["Diversification"] = 0
-
-    # 5. Asset-to-Debt Ratio
-    asset_debt_ratio = (total_assets / total_debt) if total_debt > 0 else 10
-    if asset_debt_ratio >= 2:
-        scores["Asset/Debt Ratio"] = 100
-    elif asset_debt_ratio >= 1:
-        scores["Asset/Debt Ratio"] = 70
-    elif asset_debt_ratio >= 0.5:
-        scores["Asset/Debt Ratio"] = 40
-    else:
-        scores["Asset/Debt Ratio"] = 20
-
-    # Overall Score (weighted)
-    weights = {
-        "DTI Ratio": 0.25,
-        "Savings Rate": 0.20,
-        "Emergency Fund": 0.25,
-        "Diversification": 0.10,
-        "Asset/Debt Ratio": 0.20,
-    }
-    overall = sum(scores[k] * weights[k] for k in scores)
-
-    # Grade
-    if overall >= 80:
-        grade = "A (Excellent)"
-        emoji = "🟢"
-    elif overall >= 65:
-        grade = "B (Good)"
-        emoji = "🟢"
-    elif overall >= 50:
-        grade = "C (Fair)"
-        emoji = "🟡"
-    elif overall >= 35:
-        grade = "D (Needs Work)"
-        emoji = "🟠"
-    else:
-        grade = "F (Critical)"
-        emoji = "🔴"
-
-    # Build output
-    filled = int(overall / 5)
-    bar = "█" * filled + "░" * (20 - filled)
-
-    lines = [
-        f"FINANCIAL HEALTH SCORE",
-        f"{'=' * 35}",
-        f"",
-        f"{emoji} Overall: {overall:.0f}/100 — {grade}",
-        f"[{bar}]",
-        f"",
-        f"{'─' * 35}",
-        f"BREAKDOWN:",
-        f"",
-    ]
-
-    status_emoji = {100: "🟢", 80: "🟢", 60: "🟡", 40: "🟠", 20: "🔴", 0: "🔴"}
-
-    for metric, score in scores.items():
-        se = status_emoji.get(score, "⚪")
-        bar_m = "█" * (score // 10) + "░" * (10 - score // 10)
-        lines.append(f"  {se} {metric}: {score}/100 [{bar_m}]")
-
-    lines.extend(
-        [
-            f"",
-            f"{'─' * 35}",
-            f"KEY METRICS:",
-            f"",
-            f"  Monthly Income:     {format_number(monthly_income)}",
-            f"  Monthly Spending:   {format_number(monthly_spending)}",
-            f"  Monthly Debt:       {format_number(monthly_debt_payment)}",
-            f"  DTI Ratio:          {dti:.1f}% (target: <36%)",
-            f"  Savings Rate:       {savings_rate:.1f}% (target: >20%)",
-            f"  Emergency Fund:     {emergency_months:.1f} months (target: 6-12)",
-            f"  Net Worth:          {format_number(net_worth)}",
-            f"  Asset/Debt Ratio:   {asset_debt_ratio:.2f}x",
-            f"",
-            f"{'─' * 35}",
-            f"RECOMMENDATIONS:",
-            f"",
-        ]
+    gen = HealthScoreGenerator()
+    indicators = gen._calculate_indicators(
+        income=data.get("income", 0),
+        spending=data.get("spending", 0),
+        savings_total=data.get("savings_total", 0),
+        investment_total=data.get("investment_total", 0),
+        debt_total=data.get("debt_total", 0),
+        net_worth=data.get("net_worth", 0),
+        budget_remaining=data.get("budget_remaining", 0),
     )
 
-    # Generate recommendations
-    if dti > 36:
-        lines.append(f"  ⚠️ DTI {dti:.0f}% terlalu tinggi. Hindari hutang baru.")
-    if savings_rate < 20:
-        target_save = monthly_income * 0.2 - (monthly_income - monthly_spending)
-        lines.append(f"  ⚠️ Tingkatkan savings rate. Target tambahan: {format_number(max(0, target_save))}/bulan")
-    if emergency_months < 6:
-        target_ef = monthly_expenses_est * 6 - (total_kas + total_savings)
-        lines.append(f"  ⚠️ Emergency fund kurang. Butuh tambahan: {format_number(max(0, target_ef))}")
-    if asset_debt_ratio < 1:
-        lines.append(f"  ⚠️ Aset masih lebih kecil dari hutang. Fokus investasi & bayar cicilan.")
+    overall_score = round(sum(ind["score"] for ind in indicators) / len(indicators))
 
-    # Positive notes
-    if type_count >= 4:
-        lines.append(f"  ✅ Diversifikasi investasi bagus ({type_count} jenis aset)")
-    if savings_rate > 20:
-        lines.append(f"  ✅ Savings rate {savings_rate:.0f}% sudah sehat!")
-    if emergency_months >= 6:
-        lines.append(f"  ✅ Emergency fund mencukupi ({emergency_months:.1f} bulan)")
+    indicator_names_id = [
+        "Tingkat Tabungan",
+        "Dana Darurat",
+        "Rasio Pengeluaran",
+        "Alokasi Investasi",
+        "Rasio Utang (DTI)",
+        "Pertumbuhan Kekayaan",
+        "Kepatuhan Anggaran",
+        "Tabungan vs Pemasukan",
+    ]
 
-    await update.message.reply_text("\n".join(lines))
+    scored = sorted(enumerate(indicators), key=lambda x: x[1]["score"], reverse=True)
+    strengths = [indicator_names_id[i] for i, _ in scored[:3]]
+    weaknesses = [indicator_names_id[i] for i, _ in scored[-3:]]
+
+    text = (
+        "🏥 *Skor Kesehatan Keuangan Anda*\n\n"
+        f"📊 Skor Keseluruhan: *{overall_score}/100*\n\n"
+        "💪 Kekuatan:\n"
+        f"• {strengths[0]}\n"
+        f"• {strengths[1]}\n"
+        f"• {strengths[2]}\n\n"
+        "⚠️ Perlu Perbaikan:\n"
+        f"• {weaknesses[0]}\n"
+        f"• {weaknesses[1]}\n"
+        f"• {weaknesses[2]}"
+    )
+
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+    try:
+        img = gen.generate_scorecard(data)
+        await update.message.reply_photo(photo=io.BytesIO(img))
+    except Exception as e:
+        logger.warning(f"Health scorecard image failed: {e}")
 
 
 # ── Stock Price Update ──
@@ -3707,7 +3568,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
-
 # ── /remind command and recurring bill flow ──
 
 
@@ -3876,8 +3736,7 @@ async def remind_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     saved_day = ud["remind_day"]
     context.user_data.clear()
     await query.edit_message_text(
-        f"✅ Tagihan *{saved_name}* berhasil disimpan!\n"
-        f"Kamu akan diingatkan setiap tanggal {saved_day}.",
+        f"✅ Tagihan *{saved_name}* berhasil disimpan!\nKamu akan diingatkan setiap tanggal {saved_day}.",
         parse_mode="Markdown",
     )
     return ConversationHandler.END
@@ -3921,7 +3780,7 @@ async def handle_bill_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     data_str = query.data or ""
     if data_str.startswith("pay_bill:"):
-        bill_id = data_str[len("pay_bill:"):]
+        bill_id = data_str[len("pay_bill:") :]
         rm = RecurringManager(RECURRING_PATH)
         bill = rm.get_bill_by_id(bill_id)
         if bill is None:
@@ -3939,15 +3798,14 @@ async def handle_bill_action(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             rm.mark_paid(bill_id)
             await query.edit_message_text(
-                f"✅ *{bill['name']}* sudah dibayar!\n"
-                f"Rp {bill['amount']:,.0f} dicatat ke transaksi.",
+                f"✅ *{bill['name']}* sudah dibayar!\nRp {bill['amount']:,.0f} dicatat ke transaksi.",
                 parse_mode="Markdown",
             )
         except Exception as exc:
             await query.edit_message_text(f"⚠️ Gagal mencatat pembayaran: {exc}")
 
     elif data_str.startswith("skip_bill:"):
-        bill_id = data_str[len("skip_bill:"):]
+        bill_id = data_str[len("skip_bill:") :]
         rm = RecurringManager(RECURRING_PATH)
         bill = rm.get_bill_by_id(bill_id)
         if bill is None:
@@ -4106,6 +3964,7 @@ def main():
             await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
 
             from zoneinfo import ZoneInfo as _ZoneInfo
+
             _WIB = _ZoneInfo("Asia/Jakarta")
             wib = datetime.timezone(datetime.timedelta(hours=7))
             if app.job_queue:
