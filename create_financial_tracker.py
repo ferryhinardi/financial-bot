@@ -29,9 +29,7 @@ YELLOW_BG = "FFF2CC"
 header_font = Font(name="Calibri", size=12, bold=True, color=WHITE)
 header_fill = PatternFill(start_color=DARK_BLUE, end_color=DARK_BLUE, fill_type="solid")
 subheader_font = Font(name="Calibri", size=11, bold=True, color=DARK_BLUE)
-subheader_fill = PatternFill(
-    start_color=LIGHT_BLUE, end_color=LIGHT_BLUE, fill_type="solid"
-)
+subheader_fill = PatternFill(start_color=LIGHT_BLUE, end_color=LIGHT_BLUE, fill_type="solid")
 title_font = Font(name="Calibri", size=16, bold=True, color=DARK_BLUE)
 currency_format = "#,##0"
 percent_format = "0.0%"
@@ -78,16 +76,12 @@ def style_header_row(ws, row, max_col):
         cell = ws.cell(row=row, column=col)
         cell.font = header_font
         cell.fill = header_fill
-        cell.alignment = Alignment(
-            horizontal="center", vertical="center", wrap_text=True
-        )
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.border = thin_border
 
 
 def section_title(ws, row, start_col, end_col, text, color=BLUE):
-    ws.merge_cells(
-        start_row=row, start_column=start_col, end_row=row, end_column=end_col
-    )
+    ws.merge_cells(start_row=row, start_column=start_col, end_row=row, end_column=end_col)
     cell = ws.cell(row=row, column=start_col)
     cell.value = text
     cell.font = Font(name="Calibri", size=13, bold=True, color=WHITE)
@@ -136,9 +130,7 @@ style_header_row(ws_txn, 2, len(txn_headers))
 for i, w in enumerate([14, 30, 20, 18, 15, 25, 12], 1):
     ws_txn.column_dimensions[get_column_letter(i)].width = w
 
-cat_validation = DataValidation(
-    type="list", formula1='"' + ",".join(CATEGORIES) + '"', allow_blank=True
-)
+cat_validation = DataValidation(type="list", formula1='"' + ",".join(CATEGORIES) + '"', allow_blank=True)
 cat_validation.error = "Please select a valid category"
 ws_txn.add_data_validation(cat_validation)
 cat_validation.add("C3:C1002")
@@ -151,9 +143,7 @@ payment_methods = [
     "E-Wallet",
     "Other",
 ]
-pay_validation = DataValidation(
-    type="list", formula1='"' + ",".join(payment_methods) + '"', allow_blank=True
-)
+pay_validation = DataValidation(type="list", formula1='"' + ",".join(payment_methods) + '"', allow_blank=True)
 ws_txn.add_data_validation(pay_validation)
 pay_validation.add("D3:D1002")
 
@@ -220,18 +210,14 @@ for i, w in enumerate([14, 25, 18, 15, 30, 12], 1):
     ws_income.column_dimensions[get_column_letter(i)].width = w
 
 income_cats = ["Salary", "Freelance", "Investment", "Side Business", "Gift", "Other"]
-inc_val = DataValidation(
-    type="list", formula1='"' + ",".join(income_cats) + '"', allow_blank=True
-)
+inc_val = DataValidation(type="list", formula1='"' + ",".join(income_cats) + '"', allow_blank=True)
 ws_income.add_data_validation(inc_val)
 inc_val.add("C3:C502")
 
 for row in range(3, 503):
     ws_income.cell(row=row, column=1).number_format = date_format
     ws_income.cell(row=row, column=4).number_format = currency_format
-    ws_income.cell(
-        row=row, column=6
-    ).value = f'=IF(A{row}<>"",TEXT(A{row},"YYYY-MM"),"")'
+    ws_income.cell(row=row, column=6).value = f'=IF(A{row}<>"",TEXT(A{row},"YYYY-MM"),"")'
     for c in range(1, 7):
         ws_income.cell(row=row, column=c).border = thin_border
 
@@ -254,24 +240,18 @@ ws_sav["A1"].font = title_font
 ws_sav["A1"].alignment = Alignment(horizontal="center", vertical="center")
 ws_sav.row_dimensions[1].height = 35
 
-for col, h in enumerate(
-    ["Date", "Account", "Type", "Amount", "Balance After", "Goal", "Progress"], 1
-):
+for col, h in enumerate(["Date", "Account", "Type", "Amount", "Balance After", "Goal", "Progress"], 1):
     ws_sav.cell(row=2, column=col, value=h)
 style_header_row(ws_sav, 2, 7)
 
 for i, w in enumerate([14, 20, 15, 15, 18, 18, 14], 1):
     ws_sav.column_dimensions[get_column_letter(i)].width = w
 
-acct_val = DataValidation(
-    type="list", formula1='"' + ",".join(SAVINGS_ACCOUNTS) + '"', allow_blank=True
-)
+acct_val = DataValidation(type="list", formula1='"' + ",".join(SAVINGS_ACCOUNTS) + '"', allow_blank=True)
 ws_sav.add_data_validation(acct_val)
 acct_val.add("B3:B502")
 
-type_val = DataValidation(
-    type="list", formula1='"Deposit,Withdrawal,Interest"', allow_blank=True
-)
+type_val = DataValidation(type="list", formula1='"Deposit,Withdrawal,Interest"', allow_blank=True)
 ws_sav.add_data_validation(type_val)
 type_val.add("C3:C502")
 
@@ -281,9 +261,7 @@ for row in range(3, 503):
     ws_sav.cell(row=row, column=5).number_format = currency_format
     ws_sav.cell(row=row, column=6).number_format = currency_format
     ws_sav.cell(row=row, column=7).number_format = percent_format
-    ws_sav.cell(
-        row=row, column=7
-    ).value = f'=IF(AND(E{row}<>"",F{row}<>"",F{row}<>0),E{row}/F{row},"")'
+    ws_sav.cell(row=row, column=7).value = f'=IF(AND(E{row}<>"",F{row}<>"",F{row}<>0),E{row}/F{row},"")'
     for c in range(1, 8):
         ws_sav.cell(row=row, column=c).border = thin_border
 
@@ -308,7 +286,7 @@ ws_sav.freeze_panes = "A3"
 ws_assets = wb.create_sheet("Assets")
 ws_assets.sheet_properties.tabColor = PURPLE
 
-ws_assets.merge_cells("A1:G1")
+ws_assets.merge_cells("A1:H1")
 ws_assets["A1"].value = "ASSETS & INVESTMENTS"
 ws_assets["A1"].font = title_font
 ws_assets["A1"].alignment = Alignment(horizontal="center", vertical="center")
@@ -318,6 +296,7 @@ asset_headers = [
     "Date Added",
     "Name",
     "Type",
+    "Platform",
     "Purchase Value",
     "Current Value",
     "Gain/Loss",
@@ -327,26 +306,82 @@ for col, h in enumerate(asset_headers, 1):
     ws_assets.cell(row=2, column=col, value=h)
 style_header_row(ws_assets, 2, len(asset_headers))
 
-for i, w in enumerate([14, 28, 18, 18, 18, 16, 25], 1):
+for i, w in enumerate([14, 28, 18, 18, 18, 18, 16, 25], 1):
     ws_assets.column_dimensions[get_column_letter(i)].width = w
 
-atype_val = DataValidation(
-    type="list", formula1='"' + ",".join(ASSET_TYPES) + '"', allow_blank=True
-)
+atype_val = DataValidation(type="list", formula1='"' + ",".join(ASSET_TYPES) + '"', allow_blank=True)
 ws_assets.add_data_validation(atype_val)
 atype_val.add("C3:C202")
 
 for row in range(3, 203):
     ws_assets.cell(row=row, column=1).number_format = date_format
-    ws_assets.cell(row=row, column=4).number_format = currency_format
     ws_assets.cell(row=row, column=5).number_format = currency_format
     ws_assets.cell(row=row, column=6).number_format = currency_format
-    ws_assets.cell(
-        row=row, column=6
-    ).value = f'=IF(AND(D{row}<>"",E{row}<>""),E{row}-D{row},"")'
-    for c in range(1, 8):
+    ws_assets.cell(row=row, column=7).number_format = currency_format
+    ws_assets.cell(row=row, column=7).value = f'=IF(AND(E{row}<>"",F{row}<>""),F{row}-E{row},"")'
+    for c in range(1, 9):
         ws_assets.cell(row=row, column=c).border = thin_border
 ws_assets.freeze_panes = "A3"
+
+# ═══════════════════════════════════════════════════════════════
+# SHEET 4b: DEBTS
+# ═══════════════════════════════════════════════════════════════
+ws_debts = wb.create_sheet("Debts")
+ws_debts.sheet_properties.tabColor = RED
+
+ws_debts.merge_cells("A1:K1")
+ws_debts["A1"].value = "DEBTS & LIABILITIES"
+ws_debts["A1"].font = title_font
+ws_debts["A1"].alignment = Alignment(horizontal="center", vertical="center")
+ws_debts.row_dimensions[1].height = 35
+
+debt_headers = [
+    "Date",
+    "Name",
+    "Type",
+    "Bank",
+    "Total Loan",
+    "Remaining",
+    "Monthly Payment",
+    "Interest Rate",
+    "Tenor (months)",
+    "Paid %",
+    "Notes",
+]
+for col, h in enumerate(debt_headers, 1):
+    ws_debts.cell(row=2, column=col, value=h)
+style_header_row(ws_debts, 2, len(debt_headers))
+
+for i, w in enumerate([14, 28, 18, 18, 18, 18, 18, 14, 14, 12, 25], 1):
+    ws_debts.column_dimensions[get_column_letter(i)].width = w
+
+debt_type_val = DataValidation(
+    type="list",
+    formula1='"KPR,KTA,Kartu Kredit,Pinjaman Online,Other"',
+    allow_blank=True,
+)
+ws_debts.add_data_validation(debt_type_val)
+debt_type_val.add("C3:C102")
+
+debt_bank_val = DataValidation(
+    type="list",
+    formula1='"BCA,BNI,BRI,Mandiri,CIMB,Permata,Danamon,BSI,Other"',
+    allow_blank=True,
+)
+ws_debts.add_data_validation(debt_bank_val)
+debt_bank_val.add("D3:D102")
+
+for row in range(3, 103):
+    ws_debts.cell(row=row, column=1).number_format = date_format
+    ws_debts.cell(row=row, column=5).number_format = currency_format
+    ws_debts.cell(row=row, column=6).number_format = currency_format
+    ws_debts.cell(row=row, column=7).number_format = currency_format
+    ws_debts.cell(row=row, column=8).number_format = "0.00%"
+    ws_debts.cell(row=row, column=10).value = f"=IF(E{row}=0,0,(E{row}-F{row})/E{row}*100)"
+    ws_debts.cell(row=row, column=10).number_format = "0.00"
+    for c in range(1, 12):
+        ws_debts.cell(row=row, column=c).border = thin_border
+ws_debts.freeze_panes = "A3"
 
 # ═══════════════════════════════════════════════════════════════
 # SHEET 5: BUDGET
@@ -360,9 +395,7 @@ ws_budget["A1"].font = title_font
 ws_budget["A1"].alignment = Alignment(horizontal="center", vertical="center")
 ws_budget.row_dimensions[1].height = 35
 
-for col, h in enumerate(
-    ["Category", "Budget Limit", "Actual Spent", "Remaining", "Status"], 1
-):
+for col, h in enumerate(["Category", "Budget Limit", "Actual Spent", "Remaining", "Status"], 1):
     ws_budget.cell(row=2, column=col, value=h)
 style_header_row(ws_budget, 2, 5)
 
@@ -370,9 +403,7 @@ for i, w in enumerate([22, 18, 18, 18, 15], 1):
     ws_budget.column_dimensions[get_column_letter(i)].width = w
 
 ws_budget.cell(row=2, column=7, value="Budget Month:").font = subheader_font
-ws_budget.cell(row=2, column=8, value="2026-01").font = Font(
-    size=12, bold=True, color=RED
-)
+ws_budget.cell(row=2, column=8, value="2026-01").font = Font(size=12, bold=True, color=RED)
 ws_budget.column_dimensions["G"].width = 16
 ws_budget.column_dimensions["H"].width = 14
 
@@ -380,38 +411,26 @@ default_budgets = [500000, 200000, 1500000, 200000, 300000, 200000, 300000, 5000
 for i, cat in enumerate(CATEGORIES):
     r = 3 + i
     ws_budget.cell(row=r, column=1, value=cat)
-    ws_budget.cell(
-        row=r, column=2, value=default_budgets[i]
-    ).number_format = currency_format
+    ws_budget.cell(row=r, column=2, value=default_budgets[i]).number_format = currency_format
     ws_budget.cell(row=r, column=3).value = (
-        f"=SUMPRODUCT((EXACT(Transactions!C3:C1002,A{r}))"
-        f"*(EXACT(Transactions!G3:G1002,$H$2))"
-        f"*(Transactions!E3:E1002))"
+        f"=SUMPRODUCT((EXACT(Transactions!C3:C1002,A{r}))*(EXACT(Transactions!G3:G1002,$H$2))*(Transactions!E3:E1002))"
     )
     ws_budget.cell(row=r, column=3).number_format = currency_format
     ws_budget.cell(row=r, column=4).value = f'=IF(B{r}<>"",B{r}-C{r},"")'
     ws_budget.cell(row=r, column=4).number_format = currency_format
     ws_budget.cell(
         row=r, column=5
-    ).value = (
-        f'=IF(B{r}<>"",IF(C{r}>B{r},"OVER BUDGET",IF(C{r}>B{r}*0.8,"WARNING","OK")),"")'
-    )
+    ).value = f'=IF(B{r}<>"",IF(C{r}>B{r},"OVER BUDGET",IF(C{r}>B{r}*0.8,"WARNING","OK")),"")'
     for c in range(1, 6):
         ws_budget.cell(row=r, column=c).border = thin_border
 
 total_budget_row = 3 + len(CATEGORIES)
 ws_budget.cell(row=total_budget_row, column=1, value="TOTAL").font = Font(bold=True)
-ws_budget.cell(
-    row=total_budget_row, column=2
-).value = f"=SUM(B3:B{total_budget_row - 1})"
+ws_budget.cell(row=total_budget_row, column=2).value = f"=SUM(B3:B{total_budget_row - 1})"
 ws_budget.cell(row=total_budget_row, column=2).number_format = currency_format
-ws_budget.cell(
-    row=total_budget_row, column=3
-).value = f"=SUM(C3:C{total_budget_row - 1})"
+ws_budget.cell(row=total_budget_row, column=3).value = f"=SUM(C3:C{total_budget_row - 1})"
 ws_budget.cell(row=total_budget_row, column=3).number_format = currency_format
-ws_budget.cell(
-    row=total_budget_row, column=4
-).value = f"=B{total_budget_row}-C{total_budget_row}"
+ws_budget.cell(row=total_budget_row, column=4).value = f"=B{total_budget_row}-C{total_budget_row}"
 ws_budget.cell(row=total_budget_row, column=4).number_format = currency_format
 for c in range(1, 6):
     ws_budget.cell(row=total_budget_row, column=c).border = thin_border
@@ -461,12 +480,8 @@ for highlight_row in [6, 9]:
         ws_dash.cell(row=highlight_row, column=c).fill = PatternFill(
             start_color=LIGHT_GREEN, end_color=LIGHT_GREEN, fill_type="solid"
         )
-ws_dash.cell(row=9, column=1).font = Font(
-    name="Calibri", size=12, bold=True, color=DARK_GREEN
-)
-ws_dash.cell(row=9, column=2).font = Font(
-    name="Calibri", size=14, bold=True, color=DARK_GREEN
-)
+ws_dash.cell(row=9, column=1).font = Font(name="Calibri", size=12, bold=True, color=DARK_GREEN)
+ws_dash.cell(row=9, column=2).font = Font(name="Calibri", size=14, bold=True, color=DARK_GREEN)
 
 # ── Spending by Category ──
 cat_section_row = 11
@@ -481,11 +496,7 @@ alt_fill = PatternFill(start_color=LIGHT_BLUE, end_color=LIGHT_BLUE, fill_type="
 for i, cat in enumerate(CATEGORIES):
     r = cat_h + 1 + i
     ws_dash.cell(row=r, column=1, value=cat).font = Font(name="Calibri", size=11)
-    ws_dash.cell(
-        row=r, column=2
-    ).value = (
-        f"=SUMPRODUCT((EXACT(Transactions!C3:C1002,A{r}))*(Transactions!E3:E1002))"
-    )
+    ws_dash.cell(row=r, column=2).value = f"=SUMPRODUCT((EXACT(Transactions!C3:C1002,A{r}))*(Transactions!E3:E1002))"
     ws_dash.cell(row=r, column=2).number_format = currency_format
     ws_dash.cell(row=r, column=3).value = f"=IF(B5<>0,B{r}/B5,0)"
     ws_dash.cell(row=r, column=3).number_format = percent_format
@@ -500,27 +511,21 @@ for i, cat in enumerate(CATEGORIES):
 
 total_cat_row = cat_h + 1 + len(CATEGORIES)
 ws_dash.cell(row=total_cat_row, column=1, value="TOTAL").font = Font(bold=True)
-ws_dash.cell(
-    row=total_cat_row, column=2
-).value = f"=SUM(B{cat_h + 1}:B{total_cat_row - 1})"
+ws_dash.cell(row=total_cat_row, column=2).value = f"=SUM(B{cat_h + 1}:B{total_cat_row - 1})"
 ws_dash.cell(row=total_cat_row, column=2).number_format = currency_format
 ws_dash.cell(row=total_cat_row, column=2).font = Font(bold=True)
 ws_dash.cell(row=total_cat_row, column=3).value = 1
 ws_dash.cell(row=total_cat_row, column=3).number_format = percent_format
 for c in range(1, 5):
     ws_dash.cell(row=total_cat_row, column=c).border = thin_border
-    ws_dash.cell(row=total_cat_row, column=c).fill = PatternFill(
-        start_color=GRAY, end_color=GRAY, fill_type="solid"
-    )
+    ws_dash.cell(row=total_cat_row, column=c).fill = PatternFill(start_color=GRAY, end_color=GRAY, fill_type="solid")
 
 # ── Savings Overview ──
 sav_start = total_cat_row + 2
 section_title(ws_dash, sav_start, 1, 4, "SAVINGS OVERVIEW", GREEN)
 
 sav_h = sav_start + 1
-for col, h in enumerate(
-    ["Account", "Total Deposits", "Total Withdrawals", "Net Savings"], 1
-):
+for col, h in enumerate(["Account", "Total Deposits", "Total Withdrawals", "Net Savings"], 1):
     ws_dash.cell(row=sav_h, column=col, value=h)
 style_header_row(ws_dash, sav_h, 4)
 
@@ -553,9 +558,7 @@ for c_idx in [2, 3, 4]:
 ws_dash.cell(row=sav_total, column=4).font = Font(bold=True)
 for c in range(1, 5):
     ws_dash.cell(row=sav_total, column=c).border = thin_border
-    ws_dash.cell(row=sav_total, column=c).fill = PatternFill(
-        start_color=GRAY, end_color=GRAY, fill_type="solid"
-    )
+    ws_dash.cell(row=sav_total, column=c).fill = PatternFill(start_color=GRAY, end_color=GRAY, fill_type="solid")
 
 # ── Monthly Breakdown (cols F-I) ──
 monthly_start = 3
@@ -570,15 +573,9 @@ months = [f"2026-{str(m).zfill(2)}" for m in range(1, 13)]
 for i, month in enumerate(months):
     r = m_h + 1 + i
     ws_dash.cell(row=r, column=6, value=month)
-    ws_dash.cell(
-        row=r, column=7
-    ).value = f"=SUMPRODUCT((EXACT(Income!F3:F502,F{r}))*(Income!D3:D502))"
+    ws_dash.cell(row=r, column=7).value = f"=SUMPRODUCT((EXACT(Income!F3:F502,F{r}))*(Income!D3:D502))"
     ws_dash.cell(row=r, column=7).number_format = currency_format
-    ws_dash.cell(
-        row=r, column=8
-    ).value = (
-        f"=SUMPRODUCT((EXACT(Transactions!G3:G1002,F{r}))*(Transactions!E3:E1002))"
-    )
+    ws_dash.cell(row=r, column=8).value = f"=SUMPRODUCT((EXACT(Transactions!G3:G1002,F{r}))*(Transactions!E3:E1002))"
     ws_dash.cell(row=r, column=8).number_format = currency_format
     ws_dash.cell(row=r, column=9).value = f"=G{r}-H{r}"
     ws_dash.cell(row=r, column=9).number_format = currency_format
@@ -597,9 +594,7 @@ for c_idx in [7, 8, 9]:
 ws_dash.cell(row=yr_total, column=9).font = Font(bold=True)
 for c in range(6, 10):
     ws_dash.cell(row=yr_total, column=c).border = thin_border
-    ws_dash.cell(row=yr_total, column=c).fill = PatternFill(
-        start_color=GRAY, end_color=GRAY, fill_type="solid"
-    )
+    ws_dash.cell(row=yr_total, column=c).fill = PatternFill(start_color=GRAY, end_color=GRAY, fill_type="solid")
 
 # ── Column widths for Dashboard ──
 for col, w in {1: 22, 2: 18, 3: 18, 4: 18, 5: 3, 6: 14, 7: 18, 8: 18, 9: 18}.items():
@@ -609,12 +604,8 @@ for col, w in {1: 22, 2: 18, 3: 18, 4: 18, 5: 3, 6: 14, 7: 18, 8: 18, 9: 18}.ite
 pie = PieChart()
 pie.title = "Spending by Category"
 pie.style = 10
-pie.add_data(
-    Reference(ws_dash, min_col=2, min_row=cat_h + 1, max_row=cat_h + len(CATEGORIES))
-)
-pie.set_categories(
-    Reference(ws_dash, min_col=1, min_row=cat_h + 1, max_row=cat_h + len(CATEGORIES))
-)
+pie.add_data(Reference(ws_dash, min_col=2, min_row=cat_h + 1, max_row=cat_h + len(CATEGORIES)))
+pie.set_categories(Reference(ws_dash, min_col=1, min_row=cat_h + 1, max_row=cat_h + len(CATEGORIES)))
 pie.width = 18
 pie.height = 13
 ws_dash.add_chart(pie, f"F{sav_start}")
@@ -632,9 +623,7 @@ bar.add_data(
     Reference(ws_dash, min_col=8, min_row=m_h, max_row=m_h + len(months)),
     titles_from_data=True,
 )
-bar.set_categories(
-    Reference(ws_dash, min_col=6, min_row=m_h + 1, max_row=m_h + len(months))
-)
+bar.set_categories(Reference(ws_dash, min_col=6, min_row=m_h + 1, max_row=m_h + len(months)))
 bar.width = 22
 bar.height = 13
 ws_dash.add_chart(bar, f"F{sav_start + 20}")
@@ -652,18 +641,14 @@ ws_adv["A1"].font = Font(name="Calibri", size=18, bold=True, color=DARK_GREEN)
 ws_adv["A1"].alignment = Alignment(horizontal="center", vertical="center")
 ws_adv.row_dimensions[1].height = 45
 ws_adv.merge_cells("A2:I2")
-ws_adv[
-    "A2"
-].value = "Analisis otomatis berdasarkan standar keuangan Indonesia (OJK & BI)"
+ws_adv["A2"].value = "Analisis otomatis berdasarkan standar keuangan Indonesia (OJK & BI)"
 ws_adv["A2"].font = Font(name="Calibri", size=10, italic=True, color=DARK_GRAY)
 ws_adv["A2"].alignment = Alignment(horizontal="center")
 
 for col, w in {1: 32, 2: 20, 3: 20, 4: 22, 5: 3, 6: 30, 7: 22, 8: 22, 9: 55}.items():
     ws_adv.column_dimensions[get_column_letter(col)].width = w
 
-good_fill = PatternFill(
-    start_color=LIGHT_GREEN, end_color=LIGHT_GREEN, fill_type="solid"
-)
+good_fill = PatternFill(start_color=LIGHT_GREEN, end_color=LIGHT_GREEN, fill_type="solid")
 warn_fill = PatternFill(start_color=YELLOW_BG, end_color=YELLOW_BG, fill_type="solid")
 bad_fill = PatternFill(start_color=LIGHT_RED, end_color=LIGHT_RED, fill_type="solid")
 
@@ -674,9 +659,7 @@ row = 4
 section_title(ws_adv, row, 1, 4, "SKOR KESEHATAN KEUANGAN", DARK_GREEN)
 
 ratio_header = row + 1
-for col, h in enumerate(
-    ["Indikator / Indicator", "Nilai Anda", "Target (ID)", "Status"], 1
-):
+for col, h in enumerate(["Indikator / Indicator", "Nilai Anda", "Target (ID)", "Status"], 1):
     ws_adv.cell(row=ratio_header, column=col, value=h)
 style_header_row(ws_adv, ratio_header, 4)
 
@@ -741,16 +724,10 @@ ratios = [
 
 for i, (name, formula, target, status_formula, fmt) in enumerate(ratios):
     r = ratio_header + 1 + i
-    ws_adv.cell(row=r, column=1, value=name).font = Font(
-        name="Calibri", size=11, bold=True
-    )
+    ws_adv.cell(row=r, column=1, value=name).font = Font(name="Calibri", size=11, bold=True)
     ws_adv.cell(row=r, column=2, value=formula).number_format = fmt
-    ws_adv.cell(row=r, column=3, value=target).font = Font(
-        name="Calibri", size=10, italic=True
-    )
-    ws_adv.cell(row=r, column=4, value=status_formula).font = Font(
-        name="Calibri", size=11, bold=True
-    )
+    ws_adv.cell(row=r, column=3, value=target).font = Font(name="Calibri", size=10, italic=True)
+    ws_adv.cell(row=r, column=4, value=status_formula).font = Font(name="Calibri", size=11, bold=True)
     for c in range(1, 5):
         ws_adv.cell(row=r, column=c).border = thin_border
 
@@ -765,12 +742,9 @@ ws_adv.cell(row=score_row, column=2).value = (
     '+COUNTIF(D6:D13,"AWAS")*1)/(COUNTA(D6:D13)*3)*100,0)'
 )
 ws_adv.cell(row=score_row, column=2).number_format = '0" / 100"'
-ws_adv.cell(row=score_row, column=2).font = Font(
-    name="Calibri", size=16, bold=True, color=DARK_GREEN
-)
+ws_adv.cell(row=score_row, column=2).font = Font(name="Calibri", size=16, bold=True, color=DARK_GREEN)
 ws_adv.cell(row=score_row, column=3).value = (
-    f'=IF(B{score_row}>=80,"Sangat Baik",IF(B{score_row}>=60,"Baik",'
-    f'IF(B{score_row}>=40,"Cukup","Perlu Perhatian")))'
+    f'=IF(B{score_row}>=80,"Sangat Baik",IF(B{score_row}>=60,"Baik",IF(B{score_row}>=40,"Cukup","Perlu Perhatian")))'
 )
 ws_adv.cell(row=score_row, column=3).font = Font(name="Calibri", size=13, bold=True)
 for c in range(1, 5):
@@ -787,9 +761,7 @@ for c in range(1, 5):
 # LEFT: Indonesian Adapted Budget Rule (40/30/20/10)
 # ──────────────────────────────────────
 rule_start = score_row + 2
-section_title(
-    ws_adv, rule_start, 1, 4, "ATURAN 40/30/20/10 (Adaptasi Indonesia)", DARK_GREEN
-)
+section_title(ws_adv, rule_start, 1, 4, "ATURAN 40/30/20/10 (Adaptasi Indonesia)", DARK_GREEN)
 
 rule_h = rule_start + 1
 for col, h in enumerate(["Kategori", "Ideal %", "Aktual %", "Jumlah (Rp)"], 1):
@@ -836,9 +808,7 @@ rule_items = [
 ]
 for i, (label, ideal, your_pct, your_amt) in enumerate(rule_items):
     r = rule_h + 1 + i
-    ws_adv.cell(row=r, column=1, value=label).font = Font(
-        name="Calibri", size=11, bold=True
-    )
+    ws_adv.cell(row=r, column=1, value=label).font = Font(name="Calibri", size=11, bold=True)
     ws_adv.cell(row=r, column=2, value=ideal).number_format = percent_format
     ws_adv.cell(row=r, column=3, value=your_pct).number_format = percent_format
     ws_adv.cell(row=r, column=4, value=your_amt).number_format = currency_format
@@ -895,9 +865,7 @@ for i, (name, ret, risk, tax) in enumerate(investments):
             )
     # Highlight tax-free
     if "BEBAS" in tax:
-        ws_adv.cell(row=r, column=4).font = Font(
-            name="Calibri", size=10, bold=True, color=GREEN
-        )
+        ws_adv.cell(row=r, column=4).font = Font(name="Calibri", size=10, bold=True, color=GREEN)
 
 
 # ──────────────────────────────────────
@@ -906,9 +874,7 @@ for i, (name, ret, risk, tax) in enumerate(investments):
 section_title(ws_adv, 4, 6, 9, "ANALISIS TREN BULANAN", DARK_GREEN)
 
 trend_h = 5
-for col, h in enumerate(
-    ["Bulan", "Savings Rate", "Pengeluaran", "Nasihat / Advice"], 6
-):
+for col, h in enumerate(["Bulan", "Savings Rate", "Pengeluaran", "Nasihat / Advice"], 6):
     ws_adv.cell(row=trend_h, column=col, value=h)
 style_header_row(ws_adv, trend_h, 9)
 
@@ -920,9 +886,7 @@ for i, month in enumerate(months):
     exp_ref = f"SUMPRODUCT((EXACT(Transactions!G3:G1002,F{r}))*(Transactions!E3:E1002))"
 
     # Savings rate
-    ws_adv.cell(
-        row=r, column=7
-    ).value = f'=IF({inc_ref}>0,({inc_ref}-{exp_ref})/{inc_ref},"")'
+    ws_adv.cell(row=r, column=7).value = f'=IF({inc_ref}>0,({inc_ref}-{exp_ref})/{inc_ref},"")'
     ws_adv.cell(row=r, column=7).number_format = percent_format
 
     # Spending total
@@ -1010,9 +974,7 @@ smart_alerts = [
 
 for i, (label, detail_f, value_f, action_f) in enumerate(smart_alerts):
     r = alert_h + 1 + i
-    ws_adv.cell(row=r, column=6, value=label).font = Font(
-        name="Calibri", size=11, bold=True
-    )
+    ws_adv.cell(row=r, column=6, value=label).font = Font(name="Calibri", size=11, bold=True)
     ws_adv.cell(row=r, column=7, value=detail_f)
     ws_adv.cell(
         row=r,
@@ -1109,9 +1071,7 @@ status_items = [
 
 for i, (label, formula) in enumerate(status_items):
     r = status_start + 2 + i
-    ws_adv.cell(row=r, column=1, value=label).font = Font(
-        name="Calibri", size=11, bold=True
-    )
+    ws_adv.cell(row=r, column=1, value=label).font = Font(name="Calibri", size=11, bold=True)
     ws_adv.cell(row=r, column=1).fill = subheader_fill
     ws_adv.cell(row=r, column=2, value=formula)
     if "bulan" in label.lower() or "runway" in label.lower():
@@ -1222,9 +1182,7 @@ for i, (param, value, desc) in enumerate(config_data):
     else:
         ws_cfg.cell(row=r, column=2).number_format = currency_format
     ws_cfg.cell(row=r, column=2).font = Font(name="Calibri", size=11, bold=True)
-    ws_cfg.cell(row=r, column=3, value=desc).font = Font(
-        name="Calibri", size=10, italic=True
-    )
+    ws_cfg.cell(row=r, column=3, value=desc).font = Font(name="Calibri", size=10, italic=True)
     for c in range(1, 4):
         ws_cfg.cell(row=r, column=c).border = thin_border
         if i % 2 == 0:
@@ -1240,9 +1198,7 @@ ws_cfg.cell(row=note_row, column=1).value = (
     "Nisab zakat perlu disesuaikan dengan harga emas terbaru. "
     "PTKP dan PPh mengikuti UU HPP."
 )
-ws_cfg.cell(row=note_row, column=1).font = Font(
-    name="Calibri", size=10, italic=True, color=RED
-)
+ws_cfg.cell(row=note_row, column=1).font = Font(name="Calibri", size=10, italic=True, color=RED)
 ws_cfg.cell(row=note_row, column=1).alignment = Alignment(wrap_text=True)
 ws_cfg.row_dimensions[note_row].height = 40
 
@@ -1260,11 +1216,7 @@ wb.move_sheet("Advisor", offset=-5)
 # ═══════════════════════════════════════════════════════════════
 import os
 
-filepath = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "Financial_Tracker.xlsx"
-)
+filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Financial_Tracker.xlsx")
 wb.save(filepath)
 print(f"Financial tracker saved to: {filepath}")
-print(
-    "Sheets: Dashboard, Advisor, Transactions, Income, Savings, Assets, Budget, Config"
-)
+print("Sheets: Dashboard, Advisor, Transactions, Income, Savings, Assets, Budget, Config")
