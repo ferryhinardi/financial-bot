@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import io
 import json
 import logging
 import os
@@ -27,6 +28,7 @@ from telegram.ext import (
 
 from config import is_user_allowed, settings
 from excel_manager import ExcelManager
+from chart_generator import ChartGenerator
 from onboarding import build_onboarding_handler
 
 
@@ -226,6 +228,9 @@ def match_category(keyword: str) -> str | None:
             return cat
     return None
 
+
+# ── NLP mode state ──
+nlp_state: dict = {"enabled": False}
 
 # ── Pending confirmation store (UUID-keyed, 1-hour TTL) ──
 _pending_confirmations: dict[str, dict] = {}
@@ -1382,6 +1387,12 @@ async def summary_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("\n".join(lines))
 
+    try:
+        chart_bytes = ChartGenerator().spending_pie_chart(spending)
+        await update.message.reply_photo(photo=io.BytesIO(chart_bytes))
+    except Exception as e:
+        logger.warning(f"Chart generation failed for /summary: {e}")
+
 
 async def budget_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
@@ -1507,6 +1518,13 @@ async def dashboard_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines.append("  No savings data yet.")
 
     await update.message.reply_text("\n".join(lines))
+
+    try:
+        spending_data = {"month": data["month"], "by_category": data["spending_by_category"]}
+        chart_bytes = ChartGenerator().spending_pie_chart(spending_data)
+        await update.message.reply_photo(photo=io.BytesIO(chart_bytes))
+    except Exception as e:
+        logger.warning(f"Chart generation failed for /dashboard: {e}")
 
 
 async def categories_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2616,6 +2634,15 @@ async def download_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not os.path.exists(excel_path):
         await update.message.reply_text("File Excel tidak ditemukan.")
         return
+
+    # Send explanatory message first
+    await update.message.reply_text(
+        "📊 *File Excel Financial Tracker Anda*\n\n"
+        "💡 *Tips*: Buka sheet *Panduan* (tab pertama) untuk panduan lengkap cara membaca dashboard, "
+        "penjelasan setiap sheet, glossary istilah keuangan, dan tips penggunaan.\n\n"
+        "📥 Mengunduh file...",
+        parse_mode="Markdown",
+    )
 
     await update.message.reply_document(
         document=open(excel_path, "rb"),
