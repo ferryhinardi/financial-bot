@@ -102,6 +102,206 @@ def style_data_rows(ws, start_row, end_row, start_col, end_col, alt_fill=None):
 
 
 # ═══════════════════════════════════════════════════════════════
+# PANDUAN (USER GUIDE) SHEET
+# ═══════════════════════════════════════════════════════════════
+def create_panduan_sheet(wb):
+    ws = wb.create_sheet("Panduan")
+    ws.sheet_properties.tabColor = LIGHT_BLUE
+    ws.column_dimensions["A"].width = 32
+    ws.column_dimensions["B"].width = 55
+    ws.column_dimensions["C"].width = 30
+
+    title_fill = PatternFill(start_color=DARK_BLUE, end_color=DARK_BLUE, fill_type="solid")
+    section_fill = PatternFill(start_color=BLUE, end_color=BLUE, fill_type="solid")
+    alt_fill = PatternFill(start_color=LIGHT_BLUE, end_color=LIGHT_BLUE, fill_type="solid")
+    label_font = Font(name="Calibri", size=11, bold=True, color=DARK_BLUE)
+    value_font = Font(name="Calibri", size=11, color=DARK_GRAY)
+
+    def write_title(row, text):
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        cell = ws.cell(row=row, column=1, value=text)
+        cell.font = Font(name="Calibri", size=16, bold=True, color=WHITE)
+        cell.fill = title_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[row].height = 36
+
+    def write_section(row, text):
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        cell = ws.cell(row=row, column=1, value=text)
+        cell.font = Font(name="Calibri", size=13, bold=True, color=WHITE)
+        cell.fill = section_fill
+        cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        ws.row_dimensions[row].height = 24
+
+    def write_row(row, col_a, col_b, col_c=None, use_alt=False):
+        fill = alt_fill if use_alt else None
+        for col, val, fnt in [
+            (1, col_a, label_font),
+            (2, col_b, value_font),
+            (3, col_c, value_font),
+        ]:
+            c = ws.cell(row=row, column=col, value=val)
+            c.font = fnt
+            c.alignment = Alignment(vertical="top", wrap_text=True)
+            c.border = thin_border
+            if fill:
+                c.fill = fill
+        ws.row_dimensions[row].height = 28
+
+    row = 1
+    write_title(row, "PANDUAN PENGGUNAAN FILE  (User Guide)")
+    row += 1
+
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    cell = ws.cell(row=row, column=1, value="File Excel ini dibuat otomatis. Jangan hapus atau ubah nama sheet.")
+    cell.font = Font(name="Calibri", size=10, italic=True, color=RED)
+    cell.alignment = Alignment(horizontal="center", vertical="center")
+    row += 2
+
+    write_section(row, "1. Cara Membaca Dashboard  (How to Read Dashboard)")
+    row += 1
+    write_row(
+        row,
+        "Total Pemasukan (Income)",
+        "Jumlah semua income yang dicatat di sheet Income bulan berjalan. Semakin tinggi = semakin baik.",
+        use_alt=True,
+    )
+    row += 1
+    write_row(
+        row, "Total Pengeluaran (Spending)", "Total semua transaksi di sheet Transactions. Ideal: < 80% dari income."
+    )
+    row += 1
+    write_row(
+        row,
+        "Net Cash Flow",
+        "Pemasukan minus pengeluaran. Nilai positif = surplus (BAIK). Nilai negatif = defisit (WASPADA).",
+        use_alt=True,
+    )
+    row += 1
+    write_row(
+        row,
+        "Total Tabungan (Savings)",
+        "Akumulasi semua deposit di sheet Savings. Target minimal: 6 bulan pengeluaran sebagai dana darurat.",
+    )
+    row += 1
+    write_row(
+        row,
+        "Total Aset (Assets)",
+        "Total nilai aset & investasi di sheet Assets (saham, reksadana, emas, properti, dll.).",
+        use_alt=True,
+    )
+    row += 1
+    write_row(
+        row, "Net Worth", "Total Aset + Total Tabungan. Harus tumbuh setiap bulan melebihi inflasi (> 3.5%/tahun)."
+    )
+    row += 2
+
+    write_section(row, "2. Penjelasan Setiap Sheet  (Sheet Index)")
+    row += 1
+    sheets = [
+        ("Panduan", "Halaman ini. Panduan penggunaan file Excel."),
+        ("Dashboard", "Ringkasan keuangan: income, spending, savings, net worth, dan grafik otomatis."),
+        ("Advisor", "Analisis kesehatan keuangan: skor 0-100, aturan 40/30/20/10, tips investasi Indonesia."),
+        ("Transactions", "Catat semua pengeluaran harian dengan kategori, deskripsi, dan metode bayar."),
+        ("Income", "Catat semua pemasukan: gaji, freelance, bonus, dividen, dll."),
+        ("Savings", "Tracking saldo tabungan per akun (Dana Darurat, Liburan, Investasi, Pensiun)."),
+        ("Assets", "Tracking aset & investasi: saham, reksadana, emas, properti, kendaraan."),
+        ("Debts", "Tracking semua utang: KPR, KTA, kartu kredit. Dibuat otomatis saat pertama dipakai."),
+        ("Budget", "Batas anggaran per kategori pengeluaran. Update kolom Budget Limit setiap bulan."),
+        ("Config", "Konstanta keuangan Indonesia: PTKP, nisab zakat, BI rate, UMP. Bisa diupdate manual."),
+    ]
+    for i, (name, desc) in enumerate(sheets):
+        write_row(row, name, desc, use_alt=(i % 2 == 0))
+        row += 1
+    row += 1
+
+    write_section(row, "3. Cara Membaca Advisor  (How to Read Advisor Sheet)")
+    row += 1
+    advisor_rows = [
+        (
+            "Skor Kesehatan (0-100)",
+            "Dihitung dari 8 indikator keuangan. Skor 80+ = SEHAT. 60-79 = CUKUP. < 60 = PERLU PERHATIAN.",
+        ),
+        (
+            "Warna Lampu Lalu Lintas",
+            "HIJAU (SEHAT) = kondisi baik.  KUNING (CUKUP/AWAS) = perlu perbaikan.  MERAH (KURANG/BAHAYA) = tindakan segera.",
+        ),
+        (
+            "Aturan 40/30/20/10",
+            "40% Kebutuhan Pokok · 30% Keinginan · 20% Tabungan & Investasi · 10% Sedekah/Zakat/Keluarga.",
+        ),
+        ("Rasio Tabungan (Savings Rate)", "Target >= 20% dari income. Rumus: (Income - Spending) / Income."),
+        ("Dana Darurat", "Target >= 6 bulan pengeluaran untuk karyawan tetap, >= 12 bulan untuk freelancer."),
+        ("Rasio Utang (DTI)", "Debt-to-Income Ratio. Target < 30% sesuai standar Bank Indonesia."),
+    ]
+    for i, (label, desc) in enumerate(advisor_rows):
+        write_row(row, label, desc, use_alt=(i % 2 == 0))
+        row += 1
+    row += 1
+
+    write_section(row, "4. Glossary Istilah Keuangan  (Financial Terms)")
+    row += 1
+    glossary = [
+        (
+            "Savings Rate (%)",
+            "Persentase income yang ditabung. Rumus: (Income - Spending) / Income × 100%. Target: >= 20%.",
+        ),
+        (
+            "Dana Darurat (Emergency Fund)",
+            "Tabungan khusus untuk keadaan darurat (PHK, sakit, dll.). Target: 6-12 bulan pengeluaran rutin.",
+        ),
+        (
+            "DTI (Debt-to-Income Ratio)",
+            "Rasio cicilan utang terhadap income. DTI = Total Cicilan / Income Bulanan. Batas aman BI: < 30%.",
+        ),
+        (
+            "PTKP (Penghasilan Tidak Kena Pajak)",
+            "Batas penghasilan yang tidak dikenai PPh 21. TK/0: Rp 54 juta/tahun (update sesuai aturan DJP terbaru).",
+        ),
+        (
+            "Nisab Zakat",
+            "Ambang batas kewajiban zakat maal (~85 gram emas). Update di sheet Config sesuai harga emas saat ini.",
+        ),
+        ("Net Worth", "Total kekayaan bersih: Aset + Tabungan - Utang. Indikator kesehatan keuangan jangka panjang."),
+    ]
+    for i, (term, definition) in enumerate(glossary):
+        write_row(row, term, definition, use_alt=(i % 2 == 0))
+        row += 1
+    row += 1
+
+    write_section(row, "5. Tips Menggunakan File Ini  (Usage Tips)")
+    row += 1
+    tips = [
+        (
+            "Freeze Baris Pertama",
+            "Klik View > Freeze Panes > Freeze Top Row di setiap sheet agar header selalu terlihat saat scroll.",
+        ),
+        ("Filter per Bulan", "Gunakan filter (Ctrl+Shift+L) di kolom Date untuk melihat data bulan tertentu."),
+        ("Backup Rutin", "Salin file ke Google Drive atau folder backup setiap akhir bulan agar data aman."),
+        (
+            "Update Budget Month",
+            "Ganti nilai Budget Month di sheet Budget setiap awal bulan agar formula spent otomatis terhitung.",
+        ),
+        (
+            "Jangan Hapus Formula",
+            "Kolom berwarna (Gain/Loss, Paid %, Status) berisi formula otomatis. Jangan dihapus atau diubah manual.",
+        ),
+        (
+            "Sinkron via Bot Telegram",
+            "Gunakan bot Telegram (/spend, /income, /save) untuk input data cepat langsung ke file ini.",
+        ),
+    ]
+    for i, (tip, desc) in enumerate(tips):
+        write_row(row, tip, desc, use_alt=(i % 2 == 0))
+        row += 1
+
+    return ws
+
+
+ws_panduan = create_panduan_sheet(wb)
+
+
+# ═══════════════════════════════════════════════════════════════
 # SHEET 1: TRANSACTIONS
 # ═══════════════════════════════════════════════════════════════
 ws_txn = wb.active
@@ -412,7 +612,9 @@ for i, cat in enumerate(CATEGORIES):
     r = 3 + i
     ws_budget.cell(row=r, column=1, value=cat)
     ws_budget.cell(row=r, column=2, value=default_budgets[i]).number_format = currency_format
-    ws_budget.cell(row=r, column=3).value = (
+    ws_budget.cell(
+        row=r, column=3
+    ).value = (
         f"=SUMPRODUCT((EXACT(Transactions!C3:C1002,A{r}))*(EXACT(Transactions!G3:G1002,$H$2))*(Transactions!E3:E1002))"
     )
     ws_budget.cell(row=r, column=3).number_format = currency_format
@@ -743,7 +945,9 @@ ws_adv.cell(row=score_row, column=2).value = (
 )
 ws_adv.cell(row=score_row, column=2).number_format = '0" / 100"'
 ws_adv.cell(row=score_row, column=2).font = Font(name="Calibri", size=16, bold=True, color=DARK_GREEN)
-ws_adv.cell(row=score_row, column=3).value = (
+ws_adv.cell(
+    row=score_row, column=3
+).value = (
     f'=IF(B{score_row}>=80,"Sangat Baik",IF(B{score_row}>=60,"Baik",IF(B{score_row}>=40,"Cukup","Perlu Perhatian")))'
 )
 ws_adv.cell(row=score_row, column=3).font = Font(name="Calibri", size=13, bold=True)
@@ -1204,12 +1408,13 @@ ws_cfg.row_dimensions[note_row].height = 40
 
 
 # ═══════════════════════════════════════════════════════════════
-# SHEET ORDER: Dashboard first, then Advisor
+# SHEET ORDER: Panduan first, then Dashboard, then Advisor
 # ═══════════════════════════════════════════════════════════════
-# Current: Transactions(0), Income(1), Savings(2), Assets(3), Budget(4), Dashboard(5), Advisor(6), Config(7)
-# Want:    Dashboard(0), Advisor(1), Transactions, Income, Savings, Assets, Budget, Config
-wb.move_sheet("Dashboard", offset=-5)
-wb.move_sheet("Advisor", offset=-5)
+# Current after creation: Transactions(0), Income(1), Savings(2), Assets(3), Budget(4), Dashboard(5), Advisor(6), Config(7), Panduan(8)
+# Want: Panduan(0), Dashboard(1), Advisor(2), Transactions, Income, Savings, Assets, Budget, Config
+wb.move_sheet("Panduan", offset=-wb.sheetnames.index("Panduan"))
+wb.move_sheet("Dashboard", offset=-wb.sheetnames.index("Dashboard") + 1)
+wb.move_sheet("Advisor", offset=-wb.sheetnames.index("Advisor") + 2)
 
 # ═══════════════════════════════════════════════════════════════
 # SAVE
@@ -1219,4 +1424,4 @@ import os
 filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Financial_Tracker.xlsx")
 wb.save(filepath)
 print(f"Financial tracker saved to: {filepath}")
-print("Sheets: Dashboard, Advisor, Transactions, Income, Savings, Assets, Budget, Config")
+print("Sheets: Panduan, Dashboard, Advisor, Transactions, Income, Savings, Assets, Budget, Config")

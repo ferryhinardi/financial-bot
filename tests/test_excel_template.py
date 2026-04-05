@@ -161,3 +161,31 @@ class TestDataValidation:
         validation_ranges = [dv for dv in ws.data_validations.dataValidation]
         has_bank_validation = any("D" in str(dv.sqref) for dv in validation_ranges)
         assert has_bank_validation, "Debts sheet column D (Bank) should have data validation"
+
+
+class TestPanduanSheet:
+    """Tests for Panduan (User Guide) sheet"""
+
+    def test_panduan_is_first_sheet(self, workbook):
+        """Verify Panduan is the first tab (index 0)"""
+        assert workbook.sheetnames[0] == "Panduan", f"First sheet should be 'Panduan', got '{workbook.sheetnames[0]}'"
+
+    def test_panduan_has_sections(self, workbook):
+        """Verify Panduan sheet has all 5 required sections"""
+        ws = workbook["Panduan"]
+        all_values = []
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value and isinstance(cell.value, str):
+                    all_values.append(cell.value)
+
+        full_text = " ".join(all_values)
+        required_sections = [
+            "Cara Membaca Dashboard",
+            "Penjelasan Setiap Sheet",
+            "Cara Membaca Advisor",
+            "Glossary",
+            "Tips",
+        ]
+        for section in required_sections:
+            assert section in full_text, f"Panduan sheet missing section: '{section}'"
