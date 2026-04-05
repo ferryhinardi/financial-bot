@@ -18,6 +18,7 @@ import uuid
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
+    ApplicationHandlerStop,
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
@@ -1354,6 +1355,17 @@ async def save_account(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Amount: {emoji_type}{format_number(result['amount'])}\n"
         f"Balance: {format_number(result['balance'])}"
     )
+
+    # Check for milestone celebration after deposit
+    if result["type"] != "Withdrawal":
+        try:
+            em = get_excel_manager(context)
+            milestone = em.check_milestone(account)
+            if milestone is not None:
+                await query.message.reply_text(milestone["message"])
+        except Exception as e:
+            logger.warning(f"Milestone check failed: {e}")
+
     context.user_data.clear()
     return ConversationHandler.END
 
@@ -1422,24 +1434,68 @@ async def budget_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("\n".join(lines))
 
+    try:
+        chart_bytes = ChartGenerator().budget_status_chart(budget)
+        await update.message.reply_photo(photo=io.BytesIO(chart_bytes))
+    except Exception as e:
+        logger.warning(f"Chart generation failed for /budget: {e}")
+
 
 async def savings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
         await reply_unauthorized(update)
         return
 
-    savings = get_excel_manager(context).get_savings_summary()
+    em = get_excel_manager(context)
+    savings = em.get_savings_summary()
+    goals = em.get_savings_goals()
+
+    # Build a lookup by account name for goal data
+    goals_by_account = {g["account"]: g for g in goals}
 
     lines = ["Savings Overview\n"]
     for account, data in savings["accounts"].items():
-        goal_text = ""
-        if data["goal"]:
+        goal_data = goals_by_account.get(account)
+        if data["goal"] and goal_data:
+            progress_bar = em.get_progress_bar(goal_data["progress_pct"])
+            eta = goal_data["eta_months"]
+            if eta is None:
+                eta_text = "ETA: -"
+            elif eta == 0:
+                eta_text = "ETA: ✅ Tercapai!"
+            else:
+                eta_text = f"ETA: ~{eta} bulan"
+            milestones = goal_data.get("milestones_hit", [])
+            milestone_text = f"  🏅 Milestone: {', '.join(str(m) + '%' for m in milestones)}" if milestones else ""
+            lines.append(
+                f"  {account}: Rp {format_number(data['balance'])} / Rp {format_number(data['goal'])}\n"
+                f"  {progress_bar}  •  {eta_text}"
+                + (f"\n{milestone_text}" if milestone_text else "")
+            )
+        elif data["goal"]:
             pct = data["balance"] / data["goal"] * 100
-            goal_text = f" / Goal: {format_number(data['goal'])} ({pct:.0f}%)"
-        lines.append(f"  {account}: {format_number(data['balance'])}{goal_text}")
+            lines.append(f"  {account}: {format_number(data['balance'])} / Goal: {format_number(data['goal'])} ({pct:.0f}%)")
+        else:
+            lines.append(f"  {account}: {format_number(data['balance'])}")
 
     lines.append(f"\nTotal Savings: {format_number(savings['total_savings'])}")
     await update.message.reply_text("\n".join(lines))
+
+    # Send savings progress chart
+    try:
+        chart_accounts = [
+            {
+                "name": account,
+                "balance": data["balance"],
+                "goal": data["goal"] if data["goal"] else data["balance"] * 1.2 if data["balance"] else 1,
+            }
+            for account, data in savings["accounts"].items()
+        ]
+        chart_data = {"accounts": chart_accounts, "savings_total": savings["total_savings"]}
+        chart_bytes = ChartGenerator().savings_progress_chart(chart_data)
+        await update.message.reply_photo(photo=io.BytesIO(chart_bytes))
+    except Exception as e:
+        logger.warning(f"Chart generation failed for /savings: {e}")
 
 
 async def recent_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2064,6 +2120,203 @@ async def liabilities_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     await update.message.reply_text("\n".join(lines))
+
+
+
+# ── NLP handlers ──
+
+async def nlp_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /nlp [on|off] command."""
+    if not is_authorized(update):
+        await reply_unauthorized(update)
+        return
+
+    args = context.args
+    if not args:
+        status = "aktif ✅" if nlp_state["enabled"] else "nonaktif ❌"
+        await update.message.reply_text(
+            f"🤖 Mode NLP saat ini: {status}\n\n"
+            "Gunakan `/nlp on` untuk mengaktifkan atau `/nlp off` untuk menonaktifkan."
+        )
+        return
+
+    cmd = args[0].lower()
+    if cmd == "on":
+        nlp_state["enabled"] = True
+        await update.message.reply_text(
+            "🤖 Mode NLP aktif. Kirim pesan bebas seperti 'beli makan 50k'"
+        )
+    elif cmd == "off":
+        nlp_state["enabled"] = False
+        await update.message.reply_text("🤖 Mode NLP nonaktif.")
+    else:
+        await update.message.reply_text(
+            "⚠️ Argumen tidak dikenal. Gunakan `/nlp on` atau `/nlp off`."
+        )
+
+
+async def nlp_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Intercept free-text messages when NLP mode is on."""
+    if not nlp_state["enabled"]:
+        return  # Let chat_handler handle it
+
+    if not is_authorized(update):
+        return
+
+    message = update.message
+    if message is None:
+        return
+
+    text = (message.text or "").strip()
+    if text.startswith("/") or len(text) <= 5:
+        return  # Skip commands and very short messages
+
+    nullclaw_path = os.getenv("NULLCLAW_PATH", "")
+    if not nullclaw_path:
+        await message.reply_text(
+            "⚠️ NLP belum dikonfigurasi. Set NULLCLAW_PATH di .env untuk mengaktifkan fitur ini."
+        )
+        raise ApplicationHandlerStop
+
+    from nlp_parser import NLPParser
+
+    parser = NLPParser(nullclaw_path=nullclaw_path)
+
+    await message.reply_text("🤖 Memproses pesan...")
+
+    try:
+        result = parser.parse_financial_message(text)
+    except RuntimeError:
+        await message.reply_text(
+            "⚠️ NLP belum dikonfigurasi. Set NULLCLAW_PATH di .env untuk mengaktifkan fitur ini."
+        )
+        raise ApplicationHandlerStop
+    except Exception as e:
+        await message.reply_text(f"⚠️ Gagal memproses pesan: {str(e)[:200]}")
+        raise ApplicationHandlerStop
+
+    confidence = result.get("confidence", 0.0)
+    tx_type = result.get("type", "spending")
+    amount = result.get("amount", 0)
+    category = result.get("category", "Other")
+    description = result.get("description", "")
+
+    type_label = {"spending": "Pengeluaran", "income": "Pemasukan", "savings": "Tabungan"}.get(tx_type, tx_type)
+
+    if confidence < 0.7:
+        await message.reply_text(
+            "🤔 Maksudnya?\n"
+            "[type] Rp [amount] untuk [category]?\n\n"
+            "Contoh: pengeluaran Rp 50.000 untuk Food & Groceries"
+        )
+        raise ApplicationHandlerStop
+
+    # High confidence — show preview with confirmation keyboard
+    user_id = update.effective_user.id
+    pending_data = {
+        "nlp_source": True,
+        "type": tx_type,
+        "amount": amount,
+        "category": category,
+        "description": description,
+    }
+    pending_key = _store_pending(user_id, pending_data)
+
+    preview = (
+        f"🤖 Saya mendeteksi transaksi:\n"
+        f"Tipe: {type_label}\n"
+        f"Jumlah: Rp {format_number(amount)}\n"
+        f"Kategori: {category}\n"
+        f"Deskripsi: {description or '-'}\n"
+        f"Keyakinan: {int(confidence * 100)}%\n\n"
+        f"Simpan transaksi ini?"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Simpan", callback_data=f"nlp_confirm:{pending_key}"),
+                InlineKeyboardButton("❌ Batal", callback_data=f"nlp_cancel:{pending_key}"),
+            ]
+        ]
+    )
+    await message.reply_text(preview, reply_markup=keyboard)
+    raise ApplicationHandlerStop
+
+
+async def handle_nlp_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle NLP confirm/cancel callback buttons."""
+    query = update.callback_query
+    await query.answer()
+
+    data_str = query.data or ""
+    user_id = query.from_user.id
+
+    if data_str.startswith("nlp_confirm:"):
+        pending_key = data_str[len("nlp_confirm:"):]
+        pending_data = _retrieve_pending(pending_key, user_id)
+        if pending_data is None:
+            await query.edit_message_text("⏰ Data sudah expired atau tidak ditemukan. Coba kirim ulang.")
+            return
+
+        em = get_excel_manager(context)
+        tx_type = pending_data.get("type", "spending")
+        amount = float(pending_data.get("amount", 0))
+        category = pending_data.get("category", "Other")
+        description = pending_data.get("description", "")
+
+        try:
+            if tx_type == "spending":
+                if category not in ExcelManager.CATEGORIES:
+                    category = match_category(category) or "Shopping"
+                result = em.add_transaction(
+                    amount=amount,
+                    category=category,
+                    description=description,
+                    payment_method="Cash",
+                )
+                await query.edit_message_text(
+                    f"✅ Pengeluaran tercatat!\n\n"
+                    f"Jumlah: Rp {format_number(amount)}\n"
+                    f"Kategori: {category}\n"
+                    f"Deskripsi: {description or '-'}\n"
+                    f"Tanggal: {result['date']}"
+                )
+            elif tx_type == "income":
+                if category not in ExcelManager.INCOME_CATEGORIES:
+                    category = "Other"
+                result = em.add_income(
+                    amount=amount,
+                    source=description or "Unknown",
+                    category=category,
+                    notes=description,
+                )
+                await query.edit_message_text(
+                    f"✅ Pemasukan tercatat!\n\n"
+                    f"Jumlah: Rp {format_number(amount)}\n"
+                    f"Sumber: {description or 'Unknown'}\n"
+                    f"Tanggal: {result['date']}"
+                )
+            elif tx_type == "savings":
+                result = em.add_savings(
+                    amount=amount,
+                    account="Emergency Fund",
+                    transaction_type="Deposit",
+                )
+                await query.edit_message_text(
+                    f"✅ Tabungan tercatat!\n\n"
+                    f"Jumlah: Rp {format_number(amount)}\n"
+                    f"Tanggal: {result['date']}"
+                )
+            else:
+                await query.edit_message_text(f"⚠️ Tipe transaksi tidak dikenal: {tx_type}")
+        except Exception as e:
+            await query.edit_message_text(f"⚠️ Gagal menyimpan: {e}")
+
+    elif data_str.startswith("nlp_cancel:"):
+        pending_key = data_str[len("nlp_cancel:"):]
+        _retrieve_pending(pending_key, user_id)
+        await query.edit_message_text("❌ Dibatalkan. Data tidak disimpan.")
 
 
 # ── Natural language chat handler (AI-powered) ──
@@ -3447,6 +3700,259 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+
+# ── /remind command and recurring bill flow ──
+
+
+async def remind_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await reply_unauthorized(update)
+        return
+
+    rm = RecurringManager(RECURRING_PATH)
+    bills = rm.list_recurring()
+
+    if bills:
+        lines = ["🔔 *Tagihan Rutin*\n"]
+        for bill in bills:
+            active_tag = "" if bill["active"] else " _(nonaktif)_"
+            lines.append(
+                f"• {bill['name']} — Rp {bill['amount']:,.0f} "
+                f"(tgl {bill['day_of_month']}, {bill['category']}){active_tag}"
+            )
+        text = "\n".join(lines)
+    else:
+        text = "Tidak ada tagihan rutin yang tersimpan."
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("➕ Tambah Tagihan", callback_data="remind_add"),
+                InlineKeyboardButton("📋 Lihat Semua", callback_data="remind_list"),
+            ]
+        ]
+    )
+    await update.message.reply_text(text, reply_markup=keyboard, parse_mode="Markdown")
+
+
+async def remind_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "remind_list":
+        rm = RecurringManager(RECURRING_PATH)
+        bills = rm.list_recurring()
+        if not bills:
+            await query.edit_message_text("Tidak ada tagihan rutin.")
+            return
+        lines = ["🔔 *Semua Tagihan Rutin*\n"]
+        for bill in bills:
+            paid_tag = f" _(lunas {bill['last_paid']})_" if bill["last_paid"] else ""
+            active_tag = "" if bill["active"] else " _(nonaktif)_"
+            lines.append(
+                f"• *{bill['name']}* — Rp {bill['amount']:,.0f} "
+                f"| Tgl {bill['day_of_month']} | {bill['category']}{active_tag}{paid_tag}"
+            )
+        await query.edit_message_text("\n".join(lines), parse_mode="Markdown")
+        return
+
+    if query.data == "remind_add":
+        await query.edit_message_text("Nama tagihan? (contoh: Listrik PLN, Internet Indihome)")
+        return REMIND_NAME
+
+
+async def remind_start_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update):
+        await reply_unauthorized(update)
+        return ConversationHandler.END
+    await update.message.reply_text("Nama tagihan? (contoh: Listrik PLN, Internet Indihome)")
+    return REMIND_NAME
+
+
+async def remind_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    name = update.message.text.strip()
+    if not name:
+        await update.message.reply_text("Nama tidak boleh kosong. Masukkan nama tagihan:")
+        return REMIND_NAME
+    context.user_data["remind_name"] = name
+    await update.message.reply_text(f"Nama: {name}\n\nJumlah tagihan per bulan? (contoh: 150000, Rp150.000)")
+    return REMIND_AMOUNT
+
+
+async def remind_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        amount = parse_amount(update.message.text)
+        context.user_data["remind_amount"] = amount
+    except ValueError:
+        await update.message.reply_text("Masukkan jumlah yang valid, contoh: 150000 atau Rp150.000")
+        return REMIND_AMOUNT
+
+    await update.message.reply_text(
+        f"Jumlah: Rp {amount:,.0f}\n\nTanggal jatuh tempo per bulan? (1-31, contoh: 5 untuk tanggal 5)"
+    )
+    return REMIND_DAY
+
+
+async def remind_day(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        day = int(update.message.text.strip())
+        if not 1 <= day <= 31:
+            raise ValueError
+        context.user_data["remind_day"] = day
+    except ValueError:
+        await update.message.reply_text("Masukkan angka 1-31 untuk tanggal jatuh tempo:")
+        return REMIND_DAY
+
+    keyboard = []
+    row = []
+    for cat in ExcelManager.CATEGORIES:
+        row.append(InlineKeyboardButton(cat, callback_data=f"rcat_{cat}"))
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+
+    await update.message.reply_text(
+        f"Tanggal jatuh tempo: {day}\n\nPilih kategori:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+    return REMIND_CATEGORY
+
+
+async def remind_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    category = query.data.replace("rcat_", "")
+    context.user_data["remind_category"] = category
+
+    ud = context.user_data
+    confirm_text = (
+        f"*Konfirmasi Tagihan Baru*\n\n"
+        f"Nama: {ud['remind_name']}\n"
+        f"Jumlah: Rp {ud['remind_amount']:,.0f}\n"
+        f"Jatuh tempo: tgl {ud['remind_day']} setiap bulan\n"
+        f"Kategori: {category}\n\n"
+        "Simpan tagihan ini?"
+    )
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Simpan", callback_data="remind_confirm_yes"),
+                InlineKeyboardButton("❌ Batal", callback_data="remind_confirm_no"),
+            ]
+        ]
+    )
+    await query.edit_message_text(confirm_text, reply_markup=keyboard, parse_mode="Markdown")
+    return REMIND_CONFIRM
+
+
+async def remind_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "remind_confirm_no":
+        context.user_data.clear()
+        await query.edit_message_text("❌ Dibatalkan. Tagihan tidak disimpan.")
+        return ConversationHandler.END
+
+    ud = context.user_data
+    rm = RecurringManager(RECURRING_PATH)
+    rm.add_recurring(
+        name=ud["remind_name"],
+        amount=ud["remind_amount"],
+        category=ud["remind_category"],
+        payment_method="Cash",
+        day_of_month=ud["remind_day"],
+    )
+    saved_name = ud["remind_name"]
+    saved_day = ud["remind_day"]
+    context.user_data.clear()
+    await query.edit_message_text(
+        f"✅ Tagihan *{saved_name}* berhasil disimpan!\n"
+        f"Kamu akan diingatkan setiap tanggal {saved_day}.",
+        parse_mode="Markdown",
+    )
+    return ConversationHandler.END
+
+
+async def send_daily_reminders(context: ContextTypes.DEFAULT_TYPE):
+    rm = RecurringManager(RECURRING_PATH)
+    due_bills = rm.get_due_today()
+    if not due_bills:
+        logger.info("send_daily_reminders: no bills due today")
+        return
+
+    for uid in settings.allowed_user_ids:
+        for bill in due_bills:
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton("✅ Bayar", callback_data=f"pay_bill:{bill['id']}"),
+                        InlineKeyboardButton("⏭️ Skip", callback_data=f"skip_bill:{bill['id']}"),
+                    ]
+                ]
+            )
+            try:
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text=(
+                        f"🔔 *Tagihan hari ini:* {bill['name']}\n"
+                        f"Jumlah: Rp {bill['amount']:,.0f}\n"
+                        f"Kategori: {bill['category']}"
+                    ),
+                    reply_markup=keyboard,
+                    parse_mode="Markdown",
+                )
+            except Exception:
+                logger.warning(f"send_daily_reminders: failed to send to uid {uid}")
+
+
+async def handle_bill_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    data_str = query.data or ""
+    if data_str.startswith("pay_bill:"):
+        bill_id = data_str[len("pay_bill:"):]
+        rm = RecurringManager(RECURRING_PATH)
+        bill = rm.get_bill_by_id(bill_id)
+        if bill is None:
+            await query.edit_message_text("⚠️ Tagihan tidak ditemukan.")
+            return
+
+        em = get_excel_manager(context)
+        try:
+            em.add_transaction(
+                amount=bill["amount"],
+                category=bill["category"],
+                description=f"Bayar {bill['name']}",
+                payment_method=bill.get("payment_method", "Cash"),
+                notes="Dari reminder otomatis",
+            )
+            rm.mark_paid(bill_id)
+            await query.edit_message_text(
+                f"✅ *{bill['name']}* sudah dibayar!\n"
+                f"Rp {bill['amount']:,.0f} dicatat ke transaksi.",
+                parse_mode="Markdown",
+            )
+        except Exception as exc:
+            await query.edit_message_text(f"⚠️ Gagal mencatat pembayaran: {exc}")
+
+    elif data_str.startswith("skip_bill:"):
+        bill_id = data_str[len("skip_bill:"):]
+        rm = RecurringManager(RECURRING_PATH)
+        bill = rm.get_bill_by_id(bill_id)
+        if bill is None:
+            await query.edit_message_text("⚠️ Tagihan tidak ditemukan.")
+            return
+        rm.mark_paid(bill_id)
+        await query.edit_message_text(
+            f"⏭️ *{bill['name']}* dilewati untuk bulan ini.",
+            parse_mode="Markdown",
+        )
+
+
 def main():
     global excel
 
@@ -3539,7 +4045,33 @@ def main():
     app.add_handler(save_conv)
     app.add_handler(invest_conv)
     app.add_handler(debt_conv)
+
+    remind_conv = ConversationHandler(
+        entry_points=[
+            CommandHandler("remindadd", remind_start_add),
+            CallbackQueryHandler(remind_menu_callback, pattern=r"^remind_add$"),
+        ],
+        states={
+            REMIND_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, remind_name)],
+            REMIND_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, remind_amount)],
+            REMIND_DAY: [MessageHandler(filters.TEXT & ~filters.COMMAND, remind_day)],
+            REMIND_CATEGORY: [CallbackQueryHandler(remind_category, pattern=r"^rcat_")],
+            REMIND_CONFIRM: [CallbackQueryHandler(remind_confirm, pattern=r"^remind_confirm_")],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    app.add_handler(CommandHandler("remind", remind_cmd))
+    app.add_handler(remind_conv)
+    app.add_handler(CallbackQueryHandler(remind_menu_callback, pattern=r"^remind_list$"))
+    app.add_handler(CallbackQueryHandler(handle_bill_action, pattern=r"^(pay_bill|skip_bill):"))
     app.add_handler(CallbackQueryHandler(handle_extraction_confirm, pattern=r"^cfm_"))
+    app.add_handler(CommandHandler("nlp", nlp_cmd))
+    app.add_handler(CallbackQueryHandler(handle_nlp_confirm, pattern=r"^nlp_(confirm|cancel):"))
+
+    # NLP message handler in group 0 (higher priority); raises ApplicationHandlerStop when it handles the message
+    # When NLP is off it returns None so processing falls through to group 1
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, nlp_message_handler), group=0)
 
     # Image handler (must be before text chat handler)
     app.add_handler(MessageHandler(filters.PHOTO, image_handler))
@@ -3554,8 +4086,8 @@ def main():
 
     app.add_handler(doc_conv)
 
-    # Natural language chat handler (must be LAST — catches all remaining text)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler))
+    # Natural language chat handler in group 1 — runs ONLY when NLP handler (group 0) did not stop processing
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler), group=1)
 
     print(f"Bot started! Tracking: {settings.excel_path}")
     print("Press Ctrl+C to stop.")
