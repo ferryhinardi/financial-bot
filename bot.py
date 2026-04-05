@@ -4098,12 +4098,19 @@ def main():
             await app.start()
             await app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
 
+            from zoneinfo import ZoneInfo as _ZoneInfo
+            _WIB = _ZoneInfo("Asia/Jakarta")
             wib = datetime.timezone(datetime.timedelta(hours=7))
             if app.job_queue:
                 app.job_queue.run_daily(
                     _auto_update_prices,
                     time=datetime.time(hour=17, minute=0, tzinfo=wib),
                     name="daily_stock_update",
+                )
+                app.job_queue.run_daily(
+                    send_daily_reminders,
+                    time=datetime.time(hour=7, minute=0, tzinfo=_WIB),
+                    name="daily_bill_reminders",
                 )
             else:
                 logger.warning("JobQueue not available — install python-telegram-bot[job-queue]")
