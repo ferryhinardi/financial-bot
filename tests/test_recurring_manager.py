@@ -1,3 +1,4 @@
+import calendar
 import json
 import os
 import tempfile
@@ -5,6 +6,7 @@ import threading
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from config import local_now
 from recurring_manager import RecurringManager
@@ -209,6 +211,245 @@ class RecurringManagerTestCase(unittest.TestCase):
         """Test retrieving a non-existent bill."""
         bill = self.manager.get_bill_by_id("nonexistent-id")
         self.assertIsNone(bill)
+
+    def test_update_recurring(self):
+        bill_id = self.manager.add_recurring(
+            name="Old Name",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=10,
+        )
+
+        result = self.manager.update_recurring(bill_id, name="New Name", amount=200000)
+        self.assertTrue(result)
+
+        bill = self.manager.get_bill_by_id(bill_id)
+        assert bill is not None
+        self.assertEqual(bill["name"], "New Name")
+        self.assertEqual(bill["amount"], 200000)
+        self.assertEqual(bill["day_of_month"], 10)
+
+    def test_update_recurring_not_found(self):
+        result = self.manager.update_recurring("nonexistent-id", name="X")
+        self.assertFalse(result)
+
+    def test_update_recurring_invalid_field(self):
+        bill_id = self.manager.add_recurring(
+            name="Bill",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=5,
+        )
+        with self.assertRaises(ValueError):
+            self.manager.update_recurring(bill_id, last_paid="2026-04")
+
+    def test_update_recurring_deactivate(self):
+        bill_id = self.manager.add_recurring(
+            name="Bill",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=5,
+        )
+        self.manager.update_recurring(bill_id, active=False)
+        bill = self.manager.get_bill_by_id(bill_id)
+        assert bill is not None
+        self.assertFalse(bill["active"])
+
+    def test_get_overdue(self):
+        today = local_now()
+        if today.day <= 1:
+            self.skipTest("Cannot test overdue on day 1 of month")
+
+        past_day = today.day - 1
+
+        overdue_id = self.manager.add_recurring(
+            name="Overdue Bill",
+            amount=300000,
+            category="Bills & Utilities",
+            payment_method="Cash",
+            day_of_month=past_day,
+        )
+
+        today_id = self.manager.add_recurring(
+            name="Due Today",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=today.day,
+        )
+
+        overdue = self.manager.get_overdue()
+        overdue_ids = [b["id"] for b in overdue]
+        self.assertIn(overdue_id, overdue_ids)
+        self.assertNotIn(today_id, overdue_ids)
+
+    def test_get_overdue_paid_not_returned(self):
+        today = local_now()
+        if today.day <= 1:
+            self.skipTest("Cannot test overdue on day 1 of month")
+
+        past_day = today.day - 1
+        bill_id = self.manager.add_recurring(
+            name="Paid Bill",
+            amount=300000,
+            category="Bills & Utilities",
+            payment_method="Cash",
+            day_of_month=past_day,
+        )
+        self.manager.mark_paid(bill_id)
+
+        overdue = self.manager.get_overdue()
+        self.assertNotIn(bill_id, [b["id"] for b in overdue])
+
+    def test_get_overdue_inactive_not_returned(self):
+        today = local_now()
+        if today.day <= 1:
+            self.skipTest("Cannot test overdue on day 1 of month")
+
+        past_day = today.day - 1
+        bill_id = self.manager.add_recurring(
+            name="Inactive Bill",
+            amount=300000,
+            category="Bills & Utilities",
+            payment_method="Cash",
+            day_of_month=past_day,
+        )
+        self.manager.update_recurring(bill_id, active=False)
+
+        overdue = self.manager.get_overdue()
+        self.assertNotIn(bill_id, [b["id"] for b in overdue])
+
+    def test_day_31_handling_get_due_today(self):
+        from datetime import date as _date
+
+        fake_date = _date(2026, 2, 28)
+        fake_dt = datetime(2026, 2, 28, 12, 0, 0)
+
+        with patch("recurring_manager.local_now", return_value=fake_dt):
+            manager = RecurringManager(str(self.data_path))
+
+            bill_id = manager.add_recurring(
+                name="Day 31 Bill",
+                amount=200000,
+                category="Bills & Utilities",
+                payment_method="Cash",
+                day_of_month=31,
+            )
+
+            due = manager.get_due_today()
+            self.assertEqual(len(due), 1)
+            self.assertEqual(due[0]["id"], bill_id)
+
+    def test_day_31_handling_get_overdue(self):
+        fake_dt = datetime(2026, 3, 31, 12, 0, 0)
+
+        with patch("recurring_manager.local_now", return_value=fake_dt):
+            manager = RecurringManager(str(self.data_path))
+
+            overdue_id = manager.add_recurring(
+                name="Day 30 Overdue",
+                amount=200000,
+                category="Bills & Utilities",
+                payment_method="Cash",
+                day_of_month=30,
+            )
+            not_overdue_id = manager.add_recurring(
+                name="Due Last Day (31)",
+                amount=100000,
+                category="Bills & Utilities",
+                payment_method="Cash",
+                day_of_month=31,
+            )
+
+            overdue = manager.get_overdue()
+            overdue_ids = [b["id"] for b in overdue]
+            self.assertIn(overdue_id, overdue_ids)
+            self.assertNotIn(not_overdue_id, overdue_ids)
+
+    def test_get_upcoming(self):
+        today = local_now()
+        tomorrow_day = (today + __import__("datetime").timedelta(days=1)).day
+        in_3_days_day = (today + __import__("datetime").timedelta(days=3)).day
+
+        bill_tomorrow_id = self.manager.add_recurring(
+            name="Tomorrow Bill",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=tomorrow_day,
+        )
+        bill_in_3_id = self.manager.add_recurring(
+            name="3-Day Bill",
+            amount=200000,
+            category="Bills & Utilities",
+            payment_method="Cash",
+            day_of_month=in_3_days_day,
+        )
+
+        upcoming = self.manager.get_upcoming(days=7)
+        upcoming_ids = [b["id"] for b in upcoming]
+        self.assertIn(bill_tomorrow_id, upcoming_ids)
+        self.assertIn(bill_in_3_id, upcoming_ids)
+
+    def test_get_upcoming_excludes_paid(self):
+        today = local_now()
+        tomorrow = today + __import__("datetime").timedelta(days=1)
+        tomorrow_day = tomorrow.day
+        tomorrow_month = tomorrow.strftime("%Y-%m")
+
+        bill_id = self.manager.add_recurring(
+            name="Paid Upcoming Bill",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=tomorrow_day,
+        )
+
+        with self.lock_and_set_last_paid(bill_id, tomorrow_month):
+            upcoming = self.manager.get_upcoming(days=3)
+            self.assertNotIn(bill_id, [b["id"] for b in upcoming])
+
+    def lock_and_set_last_paid(self, bill_id, month_str):
+        import contextlib
+
+        @contextlib.contextmanager
+        def _ctx():
+            with self.manager.lock:
+                data = self.manager._load()
+                for b in data["bills"]:
+                    if b["id"] == bill_id:
+                        b["last_paid"] = month_str
+                self.manager._save(data)
+            yield
+
+        return _ctx()
+
+    def test_is_paid_this_month_true(self):
+        bill_id = self.manager.add_recurring(
+            name="Bill",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=5,
+        )
+        self.manager.mark_paid(bill_id)
+        self.assertTrue(self.manager.is_paid_this_month(bill_id))
+
+    def test_is_paid_this_month_false(self):
+        bill_id = self.manager.add_recurring(
+            name="Unpaid Bill",
+            amount=100000,
+            category="Housing",
+            payment_method="Cash",
+            day_of_month=5,
+        )
+        self.assertFalse(self.manager.is_paid_this_month(bill_id))
+
+    def test_is_paid_this_month_nonexistent(self):
+        self.assertFalse(self.manager.is_paid_this_month("nonexistent-id"))
 
 
 if __name__ == "__main__":
