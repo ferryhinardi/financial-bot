@@ -33,6 +33,9 @@ Dilengkapi analisis keuangan otomatis berdasarkan standar keuangan Indonesia (OJ
 - **Quick input**: `/quick Rp50.000 makan nasi padang`
 - **Guided input**: `/spend`, `/income`, `/save`
 - **Reports**: `/summary`, `/budget`, `/savings`, `/dashboard`, `/recent`
+- **Reminders**: `/remind` — Kelola tagihan rutin bulanan
+- **Health check**: `/health` — Skor kesehatan keuangan dengan visualisasi
+- **NLP input**: `/nlp on` — Aktifkan input bahasa natural, `/nlp off` — Nonaktifkan input bahasa natural
 - **Indonesian keyword support**: makan, bensin, listrik, pulsa, kos, obat, dll.
 - **Excel-first storage**: file `Financial_Tracker.xlsx` adalah source of truth utama
 
@@ -43,6 +46,28 @@ Dilengkapi analisis keuangan otomatis berdasarkan standar keuangan Indonesia (OJ
 - **Python 3.10+** (tested: 3.12, 3.14)
 - **Akun Telegram**
 - **macOS / Linux / Windows WSL**
+
+### Install nullclaw (untuk NLP feature)
+
+Untuk mengaktifkan fitur NLP parsing bahasa natural Indonesia, install nullclaw:
+
+```bash
+# Deteksi arsitektur sistem
+ARCH=$(uname -m)
+
+# Install sesuai arsitektur
+if [ "$ARCH" = "aarch64" ]; then
+  wget https://github.com/nullclaw/nullclaw/releases/latest/download/nullclaw-linux-arm64 -O /usr/local/bin/nullclaw
+else
+  wget https://github.com/nullclaw/nullclaw/releases/latest/download/nullclaw-linux-amd64 -O /usr/local/bin/nullclaw
+fi
+
+# Berikan permission execute
+chmod +x /usr/local/bin/nullclaw
+
+# Verifikasi
+nullclaw --version
+```
 
 ---
 
