@@ -195,6 +195,50 @@ class SavingsGoalsTestCase(unittest.TestCase):
             # Should be non-empty string
             self.assertGreater(len(message), 0)
 
+    def test_progress_bar(self):
+        self.assertEqual(self.manager.get_progress_bar(0), "░░░░░░░░░░ 0%")
+        self.assertEqual(self.manager.get_progress_bar(100), "██████████ 100%")
+        self.assertEqual(self.manager.get_progress_bar(50), "█████░░░░░ 50%")
+        self.assertEqual(self.manager.get_progress_bar(45), "████░░░░░░ 45%")
+        self.assertEqual(self.manager.get_progress_bar(105), "██████████ 105%")
+        result = self.manager.get_progress_bar(33, width=6)
+        self.assertEqual(result, "█░░░░░ 33%")
+
+    def test_eta_no_deposits(self):
+        goals = self.manager.get_savings_goals()
+        vacation_goal = next((g for g in goals if g["account"] == "Vacation"), None)
+        self.assertIsNotNone(vacation_goal)
+        self.assertIsNone(vacation_goal["eta_months"])
+
+    def test_milestone_jump(self):
+        self.manager.add_savings(
+            amount=6_500_000,
+            account="Emergency Fund",
+            transaction_type="Deposit",
+        )
+        goals = self.manager.get_savings_goals()
+        ef_goal = next((g for g in goals if g["account"] == "Emergency Fund"), None)
+        self.assertIsNotNone(ef_goal)
+        self.assertGreaterEqual(ef_goal["progress_pct"], 75)
+        self.assertIn(25, ef_goal["milestones_hit"])
+        self.assertIn(50, ef_goal["milestones_hit"])
+        self.assertIn(75, ef_goal["milestones_hit"])
+
+        result1 = self.manager.check_milestone("Emergency Fund")
+        self.assertIsNotNone(result1)
+        self.assertEqual(result1["milestone_pct"], 25)
+
+        result2 = self.manager.check_milestone("Emergency Fund")
+        self.assertIsNotNone(result2)
+        self.assertEqual(result2["milestone_pct"], 50)
+
+        result3 = self.manager.check_milestone("Emergency Fund")
+        self.assertIsNotNone(result3)
+        self.assertEqual(result3["milestone_pct"], 75)
+
+        result4 = self.manager.check_milestone("Emergency Fund")
+        self.assertIsNone(result4)
+
 
 if __name__ == "__main__":
     unittest.main()

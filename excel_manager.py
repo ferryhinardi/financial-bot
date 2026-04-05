@@ -5,6 +5,7 @@ Excel Manager - Read/Write integration with Financial_Tracker.xlsx
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import tempfile
@@ -1379,11 +1380,19 @@ class ExcelManager:
         }
 
     def get_savings_goals(self) -> list[dict]:
+        """Return savings goal data for all accounts with ETA and milestone tracking.
+
+        ETA calculation rules:
+          - Uses only Deposit-type transactions from the last 3 months.
+          - eta_months = ceil((goal - balance) / avg_monthly_deposit).
+          - eta_months = None  → no deposits in last 3 months (can't estimate).
+          - eta_months = 0    → balance already >= goal (achieved).
+        """
         wb = self._load_workbook()
         try:
             ws = wb[self.SHEETS["savings"]]
 
-            account_data = {}
+            account_data: dict[str, dict] = {}
             start_row, max_row = self.ROW_RANGES["savings"]
 
             for row in range(start_row, max_row + 1):
@@ -1391,43 +1400,66 @@ class ExcelManager:
                     break
                 date_val = ws.cell(row=row, column=1).value
                 account = ws.cell(row=row, column=2).value
-                amount = ws.cell(row=row, column=4).value or 0
-                balance = ws.cell(row=row, column=5).value or 0
-                goal = ws.cell(row=row, column=6).value
+                tx_type = ws.cell(row=row, column=3).value or ""
+                amount = float(ws.cell(row=row, column=4).value or 0)
+                balance = float(ws.cell(row=row, column=5).value or 0)
+                goal_raw = ws.cell(row=row, column=6).value
 
-                if account:
-                    if account not in account_data:
-                        account_data[account] = {"balance": 0, "goal": goal, "deposits": []}
+                if not account:
+                    continue
 
-                    account_data[account]["balance"] = float(balance)
-                    if isinstance(date_val, datetime):
-                        account_data[account]["deposits"].append({"date": date_val, "amount": float(amount)})
+                if account not in account_data:
+                    account_data[account] = {
+                        "balance": 0.0,
+                        "goal": None,
+                        "deposits": [],
+                    }
+
+                # Always update to the latest row's values
+                account_data[account]["balance"] = balance
+                if goal_raw is not None:
+                    account_data[account]["goal"] = float(goal_raw)
+
+                # Collect only Deposit-type rows for ETA
+                if tx_type == "Deposit" and isinstance(date_val, datetime):
+                    account_data[account]["deposits"].append({"date": date_val, "amount": amount})
         finally:
             wb.close()
 
         result = []
         now = self._current_time()
+        three_months_ago = now - timedelta(days=90)
 
         for account, data in account_data.items():
             balance = data["balance"]
-            goal = float(data["goal"]) if data["goal"] else 0
+            goal = data["goal"] if data["goal"] is not None else 0.0
 
-            progress_pct = (balance / goal * 100) if goal > 0 else 0
+            # Progress: cap at 100 for display; don't divide by zero
+            if goal > 0:
+                progress_pct = min(balance / goal * 100, 100.0)
+            else:
+                progress_pct = 0.0
 
-            milestones_hit = []
-            for milestone in [25, 50, 75, 90, 100]:
-                if progress_pct >= milestone:
-                    milestones_hit.append(milestone)
+            # Milestones already crossed
+            milestones_hit = [m for m in [25, 50, 75, 90, 100] if progress_pct >= m]
 
-            eta_months = None
-            deposits = data["deposits"]
-            if deposits and goal > 0 and balance < goal:
-                three_months_ago = now - timedelta(days=90)
-                recent = [d for d in deposits if d["date"] >= three_months_ago]
-                if recent:
-                    avg_monthly = sum(d["amount"] for d in recent) / 3
-                    if avg_monthly > 0:
-                        eta_months = (goal - balance) / avg_monthly
+            # ETA calculation
+            if goal <= 0:
+                eta_months = None
+            elif balance >= goal:
+                eta_months = 0
+            else:
+                recent_deposits = [d for d in data["deposits"] if d["date"] >= three_months_ago]
+                if not recent_deposits:
+                    eta_months = None
+                else:
+                    # Average over a 3-month window (some months may have 0 deposits)
+                    avg_monthly = sum(d["amount"] for d in recent_deposits) / 3.0
+                    if avg_monthly <= 0:
+                        eta_months = None
+                    else:
+                        raw_months = (goal - balance) / avg_monthly
+                        eta_months = math.ceil(raw_months)
 
             result.append(
                 {
@@ -1435,12 +1467,17 @@ class ExcelManager:
                     "balance": balance,
                     "goal": goal,
                     "progress_pct": round(progress_pct, 1),
-                    "eta_months": round(eta_months, 1) if eta_months else None,
+                    "eta_months": eta_months,
                     "milestones_hit": milestones_hit,
                 }
             )
 
         return result
+
+    def get_progress_bar(self, progress_pct: float, width: int = 10) -> str:
+        filled = int(min(progress_pct, 100) / 100 * width)
+        empty = width - filled
+        return f"{'█' * filled}{'░' * empty} {progress_pct:.0f}%"
 
     def check_milestone(self, account: str) -> Optional[dict]:
         milestones = self._load_milestones()
