@@ -31,6 +31,7 @@ from config import is_user_allowed, settings
 from excel_manager import ExcelManager
 from chart_generator import ChartGenerator
 from onboarding import build_onboarding_handler
+from recurring_manager import RecurringManager
 
 
 logging.basicConfig(
@@ -72,7 +73,14 @@ excel: ExcelManager | None = None
     DEBT_START_DATE,
     DEBT_NOTES,
     PDF_PASSWORD,
-) = range(27)
+    REMIND_NAME,
+    REMIND_AMOUNT,
+    REMIND_DAY,
+    REMIND_CATEGORY,
+    REMIND_CONFIRM,
+) = range(32)
+
+RECURRING_PATH = "recurring_bills.json"
 
 HELP_TEXT = (
     "*Financial Tracker Bot*\n\n"
@@ -2211,7 +2219,6 @@ async def nlp_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         raise ApplicationHandlerStop
 
-    # High confidence — show preview with confirmation keyboard
     user_id = update.effective_user.id
     pending_data = {
         "nlp_source": True,
