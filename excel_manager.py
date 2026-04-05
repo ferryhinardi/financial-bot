@@ -4,10 +4,11 @@ Excel Manager - Read/Write integration with Financial_Tracker.xlsx
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -123,8 +124,11 @@ class ExcelManager:
         "Other",
     ]
 
-    def __init__(self, excel_path: str | os.PathLike[str]):
+    def __init__(self, excel_path: str | os.PathLike[str], milestones_path: Optional[str | os.PathLike[str]] = None):
         self.excel_path = Path(excel_path).expanduser().resolve()
+        if milestones_path is None:
+            milestones_path = self.excel_path.parent / "savings_milestones.json"
+        self.milestones_path = Path(milestones_path)
         self._ensure_file_exists()
 
     def _ensure_file_exists(self) -> None:
@@ -151,9 +155,7 @@ class ExcelManager:
         """Save via a temp file and atomic replace to reduce corruption risk."""
         self._backup()
 
-        temp_fd, temp_name = tempfile.mkstemp(
-            suffix=".xlsx", dir=self.excel_path.parent, prefix=".financial_tracker_"
-        )
+        temp_fd, temp_name = tempfile.mkstemp(suffix=".xlsx", dir=self.excel_path.parent, prefix=".financial_tracker_")
         os.close(temp_fd)
         temp_path = Path(temp_name)
 
@@ -195,9 +197,7 @@ class ExcelManager:
     def _validate_choice(self, value: str, allowed: list[str], label: str) -> str:
         normalized = (value or "").strip()
         if normalized not in allowed:
-            raise ValueError(
-                f"Invalid {label}: {normalized or '(empty)'}. Allowed values: {', '.join(allowed)}"
-            )
+            raise ValueError(f"Invalid {label}: {normalized or '(empty)'}. Allowed values: {', '.join(allowed)}")
         return normalized
 
     def validate_month(self, month: str) -> str:
@@ -235,9 +235,7 @@ class ExcelManager:
         """Add a spending transaction."""
         amount = self._validate_amount(amount)
         category = self._validate_choice(category, self.CATEGORIES, "category")
-        payment_method = self._validate_choice(
-            payment_method, self.PAYMENT_METHODS, "payment method"
-        )
+        payment_method = self._validate_choice(payment_method, self.PAYMENT_METHODS, "payment method")
         date = date or self._current_time()
 
         wb = self._load_workbook()
@@ -253,9 +251,7 @@ class ExcelManager:
             ws.cell(row=row, column=5, value=amount)
             ws.cell(row=row, column=5).number_format = "#,##0"
             ws.cell(row=row, column=6, value=(notes or "").strip())
-            ws.cell(
-                row=row, column=7
-            ).value = f'=IF(A{row}<>"",TEXT(A{row},"YYYY-MM"),"")'
+            ws.cell(row=row, column=7).value = f'=IF(A{row}<>"",TEXT(A{row},"YYYY-MM"),"")'
 
             self._save_workbook(wb)
         finally:
@@ -332,9 +328,7 @@ class ExcelManager:
                     break
                 transactions.append(
                     {
-                        "date": date_val.strftime("%Y-%m-%d")
-                        if isinstance(date_val, datetime)
-                        else str(date_val),
+                        "date": date_val.strftime("%Y-%m-%d") if isinstance(date_val, datetime) else str(date_val),
                         "description": ws.cell(row=row, column=2).value or "",
                         "category": ws.cell(row=row, column=3).value or "",
                         "amount": float(ws.cell(row=row, column=5).value or 0),
@@ -389,9 +383,7 @@ class ExcelManager:
 
                 row_desc = (ws.cell(row=row, column=2).value or "").strip().lower()
                 descriptions_match = (
-                    desc_lower
-                    and row_desc
-                    and self._has_common_substring(desc_lower, row_desc, min_len=3)
+                    desc_lower and row_desc and self._has_common_substring(desc_lower, row_desc, min_len=3)
                 )
                 either_empty = not desc_lower or not row_desc
 
@@ -452,9 +444,7 @@ class ExcelManager:
 
                 row_source = (ws.cell(row=row, column=2).value or "").strip().lower()
                 sources_match = (
-                    source_lower
-                    and row_source
-                    and self._has_common_substring(source_lower, row_source, min_len=3)
+                    source_lower and row_source and self._has_common_substring(source_lower, row_source, min_len=3)
                 )
                 either_empty = not source_lower or not row_source
 
@@ -606,9 +596,7 @@ class ExcelManager:
     def search_rows(self, sheet_key: str, filters: dict, limit: int = 20) -> list[dict]:
         """Return up to *limit* rows in *sheet_key* matching all *filters*."""
         if sheet_key not in self.COLUMN_MAP:
-            raise ValueError(
-                f"Unknown sheet key: {sheet_key}. Allowed: {', '.join(self.COLUMN_MAP)}"
-            )
+            raise ValueError(f"Unknown sheet key: {sheet_key}. Allowed: {', '.join(self.COLUMN_MAP)}")
 
         wb = self._load_workbook()
         try:
@@ -638,10 +626,7 @@ class ExcelManager:
         start_row, max_row = self.ROW_RANGES[sheet_key]
 
         if not (start_row <= row_number <= max_row):
-            raise ValueError(
-                f"Row {row_number} is outside the valid range "
-                f"({start_row}–{max_row}) for {sheet_key}."
-            )
+            raise ValueError(f"Row {row_number} is outside the valid range ({start_row}–{max_row}) for {sheet_key}.")
 
         wb = self._load_workbook()
         try:
@@ -692,9 +677,7 @@ class ExcelManager:
             raise ValueError(f"Unknown sheet key: {sheet_key}")
         start_row, max_row = self.ROW_RANGES[sheet_key]
 
-        valid = sorted(
-            {r for r in row_numbers if start_row <= r <= max_row}, reverse=True
-        )
+        valid = sorted({r for r in row_numbers if start_row <= r <= max_row}, reverse=True)
         if not valid:
             raise ValueError("No valid row numbers provided.")
 
@@ -766,18 +749,14 @@ class ExcelManager:
                     purchase_value = float(row.get("purchase_value", 0) or 0)
 
                     if price_per_share > 0 and purchase_value > 0:
-                        shares = max(
-                            round(purchase_value / price_per_share / 100) * 100, 100
-                        )
+                        shares = max(round(purchase_value / price_per_share / 100) * 100, 100)
                         new_value = shares * price_per_share
                     else:
                         shares = 0
                         new_value = old_value
 
                     try:
-                        self.update_row(
-                            "assets", row["_row"], {"current_value": new_value}
-                        )
+                        self.update_row("assets", row["_row"], {"current_value": new_value})
                         results.append(
                             {
                                 "name": row["name"],
@@ -824,9 +803,7 @@ class ExcelManager:
     ) -> dict:
         """Add an income entry."""
         amount = self._validate_amount(amount)
-        category = self._validate_choice(
-            category, self.INCOME_CATEGORIES, "income category"
-        )
+        category = self._validate_choice(category, self.INCOME_CATEGORIES, "income category")
         source = (source or "").strip()
         if not source:
             raise ValueError("Income source must not be empty.")
@@ -844,9 +821,7 @@ class ExcelManager:
             ws.cell(row=row, column=4, value=amount)
             ws.cell(row=row, column=4).number_format = "#,##0"
             ws.cell(row=row, column=5, value=(notes or "").strip())
-            ws.cell(
-                row=row, column=6
-            ).value = f'=IF(A{row}<>"",TEXT(A{row},"YYYY-MM"),"")'
+            ws.cell(row=row, column=6).value = f'=IF(A{row}<>"",TEXT(A{row},"YYYY-MM"),"")'
 
             self._save_workbook(wb)
         finally:
@@ -908,9 +883,7 @@ class ExcelManager:
     ) -> dict:
         """Add a savings entry (Deposit, Withdrawal, or Interest)."""
         amount = self._validate_amount(amount)
-        account = self._validate_choice(
-            account, self.SAVINGS_ACCOUNTS, "savings account"
-        )
+        account = self._validate_choice(account, self.SAVINGS_ACCOUNTS, "savings account")
         transaction_type = self._validate_choice(
             transaction_type,
             ["Deposit", "Withdrawal", "Interest"],
@@ -927,9 +900,7 @@ class ExcelManager:
             current_balance = self._get_account_balance(ws, account)
             if transaction_type == "Withdrawal":
                 if amount > current_balance:
-                    raise ValueError(
-                        f"Withdrawal exceeds current balance for {account}: {current_balance:,.0f}"
-                    )
+                    raise ValueError(f"Withdrawal exceeds current balance for {account}: {current_balance:,.0f}")
                 new_balance = current_balance - amount
             else:
                 new_balance = current_balance + amount
@@ -947,9 +918,7 @@ class ExcelManager:
             if goal is not None:
                 ws.cell(row=row, column=6, value=goal)
                 ws.cell(row=row, column=6).number_format = "#,##0"
-            ws.cell(
-                row=row, column=7
-            ).value = f'=IF(AND(E{row}<>"",F{row}<>"",F{row}<>0),E{row}/F{row},"")'
+            ws.cell(row=row, column=7).value = f'=IF(AND(E{row}<>"",F{row}<>"",F{row}<>0),E{row}/F{row},"")'
             ws.cell(row=row, column=7).number_format = "0.0%"
 
             self._save_workbook(wb)
@@ -1039,9 +1008,7 @@ class ExcelManager:
             ws.cell(row=row, column=5).number_format = "#,##0"
             ws.cell(row=row, column=6, value=current_value)
             ws.cell(row=row, column=6).number_format = "#,##0"
-            ws.cell(
-                row=row, column=7
-            ).value = f'=IF(AND(E{row}<>"",F{row}<>""),F{row}-E{row},"")'
+            ws.cell(row=row, column=7).value = f'=IF(AND(E{row}<>"",F{row}<>""),F{row}-E{row},"")'
             ws.cell(row=row, column=7).number_format = "#,##0"
             ws.cell(row=row, column=8, value=(notes or "").strip())
 
@@ -1085,9 +1052,7 @@ class ExcelManager:
                 notes = ws.cell(row=row, column=8).value or ""
 
                 asset = {
-                    "date": date_val.strftime("%Y-%m-%d")
-                    if isinstance(date_val, datetime)
-                    else str(date_val),
+                    "date": date_val.strftime("%Y-%m-%d") if isinstance(date_val, datetime) else str(date_val),
                     "name": name,
                     "type": asset_type,
                     "platform": platform,
@@ -1131,9 +1096,7 @@ class ExcelManager:
             "asset_count": len(assets),
         }
 
-    def set_budget(
-        self, category: str, amount: float, month: Optional[str] = None
-    ) -> dict:
+    def set_budget(self, category: str, amount: float, month: Optional[str] = None) -> dict:
         """Update the budget limit for a category and optionally the tracked month."""
         category = self._validate_choice(category, self.CATEGORIES, "budget category")
         amount = self._validate_amount(amount, allow_zero=True)
@@ -1243,9 +1206,7 @@ class ExcelManager:
             "investment_total": investments["total_current"],
             "investment_gain_loss": investments["total_gain_loss"],
             "debt_total": debts["total_remaining"],
-            "net_worth": savings["total_savings"]
-            + investments["total_current"]
-            - debts["total_remaining"],
+            "net_worth": savings["total_savings"] + investments["total_current"] - debts["total_remaining"],
         }
 
     # ── Debt / Liability tracking ──
@@ -1313,11 +1274,7 @@ class ExcelManager:
             ws.cell(row=row, column=8, value=interest_rate)
             ws.cell(row=row, column=8).number_format = "0.00%"
             ws.cell(row=row, column=9, value=tenor_months)
-            ws.cell(
-                row=row, column=10
-            ).value = (
-                f'=IF(AND(E{row}<>"",F{row}<>"",E{row}<>0),(E{row}-F{row})/E{row},"")'
-            )
+            ws.cell(row=row, column=10).value = f'=IF(AND(E{row}<>"",F{row}<>"",E{row}<>0),(E{row}-F{row})/E{row},"")'
             ws.cell(row=row, column=10).number_format = "0.0%"
             ws.cell(row=row, column=11, value=(notes or "").strip())
 
@@ -1325,9 +1282,7 @@ class ExcelManager:
         finally:
             wb.close()
 
-        paid_pct = (
-            ((total_loan - remaining) / total_loan * 100) if total_loan > 0 else 0
-        )
+        paid_pct = ((total_loan - remaining) / total_loan * 100) if total_loan > 0 else 0
 
         return {
             "row": row,
@@ -1381,16 +1336,10 @@ class ExcelManager:
                 tenor_months = int(ws.cell(row=row, column=9).value or 0)
                 notes = ws.cell(row=row, column=11).value or ""
 
-                paid_pct = (
-                    ((total_loan - remaining) / total_loan * 100)
-                    if total_loan > 0
-                    else 0
-                )
+                paid_pct = ((total_loan - remaining) / total_loan * 100) if total_loan > 0 else 0
 
                 debt = {
-                    "date": date_val.strftime("%Y-%m-%d")
-                    if isinstance(date_val, datetime)
-                    else str(date_val),
+                    "date": date_val.strftime("%Y-%m-%d") if isinstance(date_val, datetime) else str(date_val),
                     "name": name,
                     "type": debt_type,
                     "bank": bank,
@@ -1428,3 +1377,115 @@ class ExcelManager:
             "total_monthly": grand_total_monthly,
             "debt_count": len(debts),
         }
+
+    def get_savings_goals(self) -> list[dict]:
+        wb = self._load_workbook()
+        try:
+            ws = wb[self.SHEETS["savings"]]
+
+            account_data = {}
+            start_row, max_row = self.ROW_RANGES["savings"]
+
+            for row in range(start_row, max_row + 1):
+                if ws.cell(row=row, column=1).value is None:
+                    break
+                date_val = ws.cell(row=row, column=1).value
+                account = ws.cell(row=row, column=2).value
+                amount = ws.cell(row=row, column=4).value or 0
+                balance = ws.cell(row=row, column=5).value or 0
+                goal = ws.cell(row=row, column=6).value
+
+                if account:
+                    if account not in account_data:
+                        account_data[account] = {"balance": 0, "goal": goal, "deposits": []}
+
+                    account_data[account]["balance"] = float(balance)
+                    if isinstance(date_val, datetime):
+                        account_data[account]["deposits"].append({"date": date_val, "amount": float(amount)})
+        finally:
+            wb.close()
+
+        result = []
+        now = self._current_time()
+
+        for account, data in account_data.items():
+            balance = data["balance"]
+            goal = float(data["goal"]) if data["goal"] else 0
+
+            progress_pct = (balance / goal * 100) if goal > 0 else 0
+
+            milestones_hit = []
+            for milestone in [25, 50, 75, 90, 100]:
+                if progress_pct >= milestone:
+                    milestones_hit.append(milestone)
+
+            eta_months = None
+            deposits = data["deposits"]
+            if deposits and goal > 0 and balance < goal:
+                three_months_ago = now - timedelta(days=90)
+                recent = [d for d in deposits if d["date"] >= three_months_ago]
+                if recent:
+                    avg_monthly = sum(d["amount"] for d in recent) / 3
+                    if avg_monthly > 0:
+                        eta_months = (goal - balance) / avg_monthly
+
+            result.append(
+                {
+                    "account": account,
+                    "balance": balance,
+                    "goal": goal,
+                    "progress_pct": round(progress_pct, 1),
+                    "eta_months": round(eta_months, 1) if eta_months else None,
+                    "milestones_hit": milestones_hit,
+                }
+            )
+
+        return result
+
+    def check_milestone(self, account: str) -> Optional[dict]:
+        milestones = self._load_milestones()
+
+        goals = self.get_savings_goals()
+        goal_data = next((g for g in goals if g["account"] == account), None)
+
+        if not goal_data:
+            return None
+
+        current_pct = goal_data["progress_pct"]
+        last_milestone = milestones.get(account, {}).get("last_milestone", 0)
+
+        for milestone in [25, 50, 75, 90, 100]:
+            if current_pct >= milestone and milestone > last_milestone:
+                milestones[account] = {
+                    "last_milestone": milestone,
+                    "checked_at": self._current_time().strftime("%Y-%m"),
+                }
+                self._save_milestones(milestones)
+
+                return {
+                    "account": account,
+                    "milestone_pct": milestone,
+                    "message": self.get_celebration_message(milestone),
+                }
+
+        return None
+
+    def get_celebration_message(self, milestone_pct: int) -> str:
+        messages = {
+            25: "🎉 Hebat! Kamu sudah mencapai 25% dari targetmu!",
+            50: "🚀 Luar biasa! Setengah perjalanan sudah tercapai!",
+            75: "💪 Hampir sampai! 75% target tercapai!",
+            90: "⭐ Sedikit lagi! Tinggal 10% menuju target!",
+            100: "🏆 SELAMAT! Target tabungan tercapai!",
+        }
+        return messages.get(milestone_pct, f"✨ Milestone {milestone_pct}% tercapai!")
+
+    def _load_milestones(self) -> dict:
+        if self.milestones_path.exists():
+            with open(self.milestones_path) as f:
+                return json.load(f)
+        return {}
+
+    def _save_milestones(self, data: dict) -> None:
+        with open(self.milestones_path, "w") as f:
+            json.dump(data, f, indent=2)
